@@ -1,29 +1,11 @@
 /* Automatisch erzeugt von tools/build.py – Offline-Cache für Durak 3D */
-const CACHE = 'durak-982b95e047';
+const CACHE = 'durak-71bb60918f';
 const FILES = [
   "./",
   "index.html",
-  "css/style.css",
   "manifest.webmanifest",
-  "icons/icon-192.png",
-  "icons/icon-512.png",
-  "vendor/three.min.js",
-  "js/assets.js",
-  "js/config.js",
-  "js/rules.js",
-  "js/ai.js",
-  "js/textures.js",
-  "js/audio.js",
-  "js/scene.js",
-  "js/ui.js",
-  "js/net.js",
-  "js/main.js",
-  "js/online.js",
-  "js/app.js",
-  "assets/table/background.jpg",
-  "assets/table/felt_diffuse.jpg",
-  "assets/table/wood_diffuse.jpg",
-  "assets/title/logo.png"
+  "icon-192.png",
+  "icon-512.png"
 ];
 self.addEventListener('install', (e) => {
   self.skipWaiting();

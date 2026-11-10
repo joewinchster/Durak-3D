@@ -266,6 +266,48 @@ h1 {
 body.osk .screen { bottom: 47vh; padding-top: 1vh; padding-bottom: 1vh; }
 body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); padding-top: 4px; padding-bottom: 4px; }
 
+/* ---------- Videofenster ---------- */
+#videos { position: absolute; left: max(10px, env(safe-area-inset-left)); top: clamp(52px, 9.5vw, 66px); display: flex; flex-direction: column; gap: 6px; pointer-events: none !important; }
+.vtile {
+  position: relative; width: clamp(84px, 13vw, 150px); aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; pointer-events: auto;
+  background: #05091c; border: 2px solid rgba(242, 193, 78, .7); box-shadow: 0 4px 14px rgba(0, 0, 0, .5); transition: width .2s;
+}
+.vtile.own { width: clamp(52px, 8vw, 92px); opacity: .9; }
+.vtile.big { width: clamp(180px, 34vw, 380px); }
+.vtile video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vtile.own video { transform: scaleX(-1); }
+.vtile span { position: absolute; left: 0; right: 0; bottom: 0; padding: 1px 6px; font-size: 11px; font-weight: 700; background: rgba(5, 9, 28, .65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Hochformat ---------- */
+#rotate { display: none !important; }
+@media (orientation: portrait) {
+  #actions { left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); width: auto; flex-direction: row; gap: 5px; }
+  .act { flex: 1 1 0; min-width: 0; padding: .7em .1em; font-size: clamp(11px, 3.1vw, 16px); }
+  .act small { display: none; }
+  #camCtl { left: auto; right: max(8px, env(safe-area-inset-right)); bottom: auto; top: clamp(52px, 13vw, 66px); width: clamp(100px, 30vw, 150px); }
+  #hint { bottom: 37vh; max-width: 92vw; font-size: clamp(12px, 3.4vw, 16px); }
+  #status { max-width: 40vw; }
+  #trumpInfo, #status { font-size: clamp(11px, 3.1vw, 15px); padding: .35em .55em; }
+  #topbar { gap: 5px; }
+  .icon { width: clamp(32px, 9vw, 44px); height: clamp(32px, 9vw, 44px); font-size: clamp(15px, 4.4vw, 21px); }
+  .plabel { font-size: clamp(10px, 3vw, 14px); }
+  #announce { font-size: clamp(16px, 5vw, 28px); }
+  #awayBar { flex-direction: column; white-space: normal; text-align: center; font-size: 13px; }
+  .screen { flex-direction: column; gap: 2vh; padding: 2vh 4vw; }
+  #logo { height: min(38vh, 86vw); }
+  .titleRight { min-width: min(86vw, 420px); gap: 1.2vh; }
+  h1 { font-size: clamp(38px, 15vw, 84px); }
+  .sub, .big, .ghost, .opt, .panel h2, .panel p, .lrow, .prow input, .seg button, .scoreBox table { font-size: clamp(13px, 4vw, 19px); }
+  .big { font-size: clamp(16px, 5vw, 24px); }
+  .panel h2 { font-size: clamp(18px, 6vw, 28px); }
+  .cols { grid-template-columns: 1fr; }
+  .opt { flex-wrap: wrap; }
+  #osk button { height: clamp(34px, 5.4vh, 52px); font-size: clamp(14px, 4.4vw, 22px); }
+  #osk { padding: 6px 4px 8px; } .orow { gap: 3px; }
+  .vtile { width: clamp(84px, 24vw, 130px); } .vtile.own { width: clamp(50px, 14vw, 80px); } .vtile.big { width: 62vw; }
+  #videos { top: clamp(52px, 13vw, 66px); }
+}
+
 </style>
 </head>
 <body>
@@ -282,6 +324,8 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
       <div id="trumpInfo" title="Trumpf und Nachziehstapel"></div>
       <div id="status"></div>
       <div class="spacer"></div>
+      <button id="btnCam" class="icon hidden" title="Kamera und Mikrofon ein/aus">📹</button>
+      <button id="btnMic" class="icon hidden" title="Mikrofon stumm">🎤</button>
       <button id="btnMirror" class="icon" title="Ansicht spiegeln (Mirror Display)">⇋</button>
       <button id="btnReveal" class="icon" title="Alle aufdecken / verdeckt halten (Test)">👁</button>
       <button id="btnFull" class="icon" title="Vollbild">⛶</button>
@@ -308,6 +352,7 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
     <div id="awayBar" class="hidden"><span id="awayText"></span>
       <button id="btnTakeover" class="ghost">🤖 Computer übernimmt</button></div>
     <div id="toast"></div>
+    <div id="videos"></div>
   </div>
 
   <div id="announce"></div>
@@ -343,6 +388,8 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
         <input type="range" min="0" max="100" data-set="sfxVol" aria-label="Effekt-Lautstärke">
         <button class="tog" data-set="sfx"></button></div>
       <div class="opt"><span>😂 Lacher &amp; Gewinner-Effekt</span><button class="tog" data-set="laughs"></button></div>
+      <div class="opt"><span>🎙 Eigener Lacher <small id="recInfo">mit dem Mikrofon aufnehmen</small></span>
+        <button id="btnRec" class="ghost">● Aufnehmen</button><button id="btnRecPlay" class="ghost">▶</button><button id="btnRecDel" class="ghost">✕</button></div>
       <div class="opt"><span>🎥 Kamera schwenkt zum Spieler</span><button class="tog" data-set="autoCam"></button></div>
       <div class="opt"><span>📱 Übergabe-Bildschirm <small>„Gerät weitergeben“ vor jedem Zug</small></span><button class="tog" data-set="handover"></button></div>
       <div class="opt"><span>Sichtschutz <small>Handkarten aufdecken</small></span>
@@ -479,6 +526,7 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
       <div class="scoreBox"></div>
       <div class="btnRow">
         <button id="btnAgain" class="big small">Nochmal spielen</button>
+        <button id="btnBackLobby" class="ghost hidden">↩ Zur Lobby</button>
         <button id="btnToTitle" class="ghost">Titelbild</button>
       </div>
     </div>
@@ -1442,6 +1490,8 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   }
   function laugh(voices) {
     if (!set.sfx || !set.laughs) return;
+    const own = DK.customLaughs || [];          // selbst aufgenommene Lacher (Optionen)
+    if (own.length && Math.random() < 0.8) { const a = new Audio(own[Math.floor(Math.random() * own.length)]); a.volume = sfxVol(); a.play().catch(() => {}); return; }
     if (playSample('laugh', sfxVol())) return;
     if (!ctx) return;
     const t = ctx.currentTime + 0.02;
@@ -1786,18 +1836,20 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     const cq = ghost.quaternion, cp = ghost.position;
     const halfH = HAND_DIST * Math.tan(CC.fov / 2 * DEG), halfW = halfH * camera.aspect;
     const m = hand.length, open = !!v.revealed;
-    const span = Math.max(0.5, 2 * halfW * 0.6 - CARD.W);
-    const s = m > 1 ? Math.min(open ? 0.82 : 0.4, span / (m - 1)) : 0;
+    const tall = camera.aspect < 1, fs = tall ? Math.max(0.5, Math.min(0.85, halfW / 2.1)) : 1;   // Hochformat: kleinere Karten, volle Breite
+    const span = Math.max(0.5, 2 * halfW * (tall ? 0.94 : 0.6) - CARD.W * fs);
+    const s = m > 1 ? Math.min((open ? 0.82 : 0.4) * fs, span / (m - 1)) : 0;
+    const lift = tall ? 2 * halfH * 0.085 : 0;
     const flip = new Q().setFromAxisAngle(Y_AXIS, Math.PI);
     hand.forEach((c, i) => {
       if (c.id === v.dragging) return;
       const t = i - (m - 1) / 2, lx = t * s, sel = c.id === v.selected;
       const can = v.playable ? v.playable.has(c.id) : true;
-      const local = new V3(lx, -halfH + 1.12 - 0.022 * lx * lx + (sel ? 0.42 : 0) + (open && v.playable && can && !sel ? 0.1 : 0), -HAND_DIST + i * 0.012);
+      const local = new V3(lx, -halfH + 1.12 * fs + lift - 0.022 * lx * lx + (sel ? 0.42 : 0) + (open && v.playable && can && !sel ? 0.1 : 0), -HAND_DIST + i * 0.012);
       const pos = local.applyQuaternion(cq).add(cp);
       const q = cq.clone().multiply(new Q().setFromAxisAngle(Z_AXIS, -lx * 0.055));
       if (!open) q.multiply(flip);
-      o_set(c.id, pos, q, opt(c.id, { shadow: false, hop: false, speed: 11, dim: open && v.playable && !can ? 0.62 : 1 }));
+      o_set(c.id, pos, q, opt(c.id, { shadow: false, hop: false, speed: 11, scale: fs, dim: open && v.playable && !can ? 0.62 : 1 }));
     });
   }
 
@@ -1976,9 +2028,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     if (d.fullscreenElement || d.webkitFullscreenElement) { (d.exitFullscreen || d.webkitExitFullscreen).call(d); return; }
     const req = el.requestFullscreen || el.webkitRequestFullscreen;
     if (!req) return;
-    Promise.resolve(req.call(el)).then(() => {
-      if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
-    }).catch(() => {});
+    Promise.resolve(req.call(el)).catch(() => {});
   }
 
   const canFullscreen = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
@@ -2322,6 +2372,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     showOnly(null); UI.show('hud', true); keepAwake(true);
     UI.show('btnReveal', !st.net); UI.show('btnRestart', !isClient()); UI.show('awayBar', false);
     S.setSeats(n); S.idleSpin = false; UI.buildLabels(n);
+    if (DK.Video) setTimeout(() => DK.Video.announce(), 0);
   }
   async function startGame(cfg) {
     const ep = ++st.epoch;
@@ -2473,12 +2524,21 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     DK.saveStats(); UI.renderScores();
     $('overTitle').textContent = info.title; $('overText').textContent = info.text;
     if (info.loser != null) setTimeout(() => A.laugh(3), 500);
-    UI.show('btnAgain', !isClient()); UI.show('overWait', isClient());
+    UI.show('btnAgain', !isClient()); UI.show('overWait', isClient()); UI.show('btnBackLobby', isHost());
     UI.show('gameover', true);
   }
 
+  /* Partie verlassen, aber im Raum bleiben (Revanche mit denselben Leuten) */
+  function toLobby() {
+    ++st.epoch;
+    if (DK.Video) DK.Video.reset();
+    st.net = null;
+    showOnly('lobby'); UI.show('hud', false); UI.buildLabels(0);
+    showDemo();
+  }
   function toTitle(msg) {
     ++st.epoch;
+    if (DK.Video) DK.Video.reset();
     if (st.net) { const n = st.net; st.net = null; n.close(); }
     keepAwake(false);
     showOnly('title'); UI.show('hud', false); UI.buildLabels(0);
@@ -2534,7 +2594,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       net: session, me: m.me, mySeat: m.me, names: m.names, kind: m.names.map((x, i) => (i === m.me ? 'local' : 'remote')), auto: [], away: [],
       playing: true, busy: true, over: false, solo: true, pending: false, ready: null, revealAll: false, opts: m.opts, trumpSuit: m.trump, gid: m.gid
     });
-    if (same) return;                       // nur neu verbunden: Karten und Kamera bleiben
+    if (same) { if (DK.Video) DK.Video.announce(); return; }   // nur neu verbunden: Karten und Kamera bleiben
     Object.assign(st, { actor: -1, winner: null, swung: false, wasGo: false, fresh: true, trumpShown: false, showCard: null, selected: null, dragging: null, fieldYaw: 0, game: null });
     st.cards = new Map(DK.Rules.makeDeck(m.opts.deckSize).map((c) => [c.id, c]));
     enterGame(m.n); S.setAzDeg(0);
@@ -2754,7 +2814,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
 
   /* Schnittstelle für js/online.js */
   DK.Game = {
-    state: st, start: startGame, toTitle, showOnly, go, back,
+    state: st, start: startGame, toTitle, toLobby, showOnly, go, back,
     remoteMove, seatOnline, seatLeft, clientStart, clientMsg
   };
 
@@ -2771,6 +2831,134 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   }
   DK.state = st;
   DK.dev = { playCard, submit, myTurn };   // für Tests in der Browser-Konsole
+})();
+
+</script>
+  <script>
+/* Durak 3D – Videofenster: die Mitspieler während der Partie sehen und hören
+ *
+ * Jeder schaltet seine Kamera selbst ein (📹). Das Bild geht direkt von Gerät zu Gerät an alle anderen
+ * Menschen am Tisch und erscheint dort als kleines Fenster. Antippen vergrößert/verkleinert ein Fenster.
+ * Der Verbindungsaufbau läuft über die vorhandene Spielverbindung (der Gastgeber reicht die Nachrichten weiter).
+ * Kamera und Mikrofon brauchen eine https-Adresse (oder localhost).
+ */
+(function () {
+  'use strict';
+  const DK = window.DK, UI = DK.UI, $ = UI.$;
+  const st = () => DK.Game.state;
+  const out = new Map();     // Platz -> Verbindung, über die ICH sende
+  const inc = new Map();     // Platz -> { pc, tile } von anderen empfangen
+  let stream = null, micOn = true, selfTile = null;
+  const supported = !!(window.RTCPeerConnection && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+  function send(to, d) {
+    const s = st(); if (!s.net) return;
+    if (s.net.role === 'host') s.net.sendTo(to, { t: 'rtc', from: s.me, d });
+    else s.net.send({ t: 'rtc', to, d });
+  }
+  const targets = () => st().kind.map((k, i) => (k === 'remote' && i !== st().me ? i : -1)).filter((i) => i >= 0);
+
+  function tile(seat, label, own) {
+    const box = document.createElement('div'); box.className = 'vtile' + (own ? ' own' : '');
+    const v = document.createElement('video'); v.autoplay = true; v.playsInline = true; v.muted = !!own;
+    v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
+    const n = document.createElement('span'); n.textContent = label;
+    box.appendChild(v); box.appendChild(n);
+    box.addEventListener('click', () => box.classList.toggle('big'));
+    $('videos').appendChild(box);
+    return { box, v };
+  }
+  function dropIn(seat) {
+    const r = inc.get(seat); if (!r) return;
+    inc.delete(seat); try { r.pc.close(); } catch (e) { /* egal */ }
+    if (r.tile) r.tile.box.remove();
+  }
+  function dropOut(seat) { const pc = out.get(seat); if (pc) { out.delete(seat); try { pc.close(); } catch (e) { /* egal */ } } }
+
+  function callSeat(seat) {
+    if (!stream) return;
+    dropOut(seat);
+    const pc = new RTCPeerConnection({ iceServers: DK.CONFIG.net.ice });
+    pc.pend = []; out.set(seat, pc);
+    stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+    pc.onicecandidate = (e) => { if (e.candidate) send(seat, { c: e.candidate.toJSON(), dir: 'out' }); };
+    pc.createOffer().then((o) => pc.setLocalDescription(o)).then(() => send(seat, { offer: pc.localDescription.toJSON() })).catch(() => dropOut(seat));
+  }
+  function addCands(pc) { pc.ready = true; pc.pend.forEach((c) => pc.addIceCandidate(c).catch(() => {})); pc.pend = []; }
+
+  function onSignal(from, d) {
+    if (!d || !st().net) return;
+    if (d.want) { if (stream) callSeat(from); return; }
+    if (d.bye) return dropIn(from);
+    if (d.offer) {
+      dropIn(from);
+      const pc = new RTCPeerConnection({ iceServers: DK.CONFIG.net.ice }), rec = { pc, tile: null };
+      pc.pend = []; inc.set(from, rec);
+      pc.ontrack = (e) => {
+        if (!rec.tile) rec.tile = tile(from, st().names[from] || '', false);
+        rec.tile.v.srcObject = e.streams[0] || new MediaStream([e.track]);
+        rec.tile.v.play().catch(() => {});
+      };
+      pc.onicecandidate = (e) => { if (e.candidate) send(from, { c: e.candidate.toJSON(), dir: 'in' }); };
+      pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed' || pc.connectionState === 'closed') { if (inc.get(from) === rec) dropIn(from); } };
+      pc.setRemoteDescription(d.offer).then(() => { addCands(pc); return pc.createAnswer(); })
+        .then((a) => pc.setLocalDescription(a)).then(() => send(from, { answer: pc.localDescription.toJSON() })).catch(() => dropIn(from));
+      return;
+    }
+    if (d.answer) { const pc = out.get(from); if (pc) pc.setRemoteDescription(d.answer).then(() => addCands(pc)).catch(() => dropOut(from)); return; }
+    if (d.c) {
+      const pc = d.dir === 'out' ? (inc.get(from) || {}).pc : out.get(from);
+      if (pc) { if (pc.ready) pc.addIceCandidate(d.c).catch(() => {}); else pc.pend.push(d.c); }
+    }
+  }
+
+  function buttons() {
+    const net = !!st().net && st().playing;
+    UI.show('btnCam', net && supported); UI.show('btnMic', net && !!stream);
+    $('btnCam').classList.toggle('on', !!stream);
+    $('btnMic').classList.toggle('on', !!stream && micOn);
+    $('btnMic').textContent = micOn ? '🎤' : '🔇';
+  }
+  function start(custom) {
+    if (stream) return Promise.resolve();
+    const get = custom ? Promise.resolve(custom) : navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 15 }, facingMode: 'user' },
+      audio: { echoCancellation: true, noiseSuppression: true }
+    });
+    return get.then((s) => {
+      stream = s; micOn = true;
+      selfTile = tile(-1, 'Du', true); selfTile.v.srcObject = s;
+      targets().forEach(callSeat);
+      buttons();
+    }).catch(() => { UI.announce('Kamera/Mikrofon nicht verfügbar oder nicht erlaubt', 2600); buttons(); });
+  }
+  function stop() {
+    if (!stream) return;
+    Array.from(out.keys()).forEach((seat) => { send(seat, { bye: 1 }); dropOut(seat); });
+    stream.getTracks().forEach((t) => t.stop()); stream = null;
+    if (selfTile) { selfTile.box.remove(); selfTile = null; }
+    buttons();
+  }
+  function reset() {                      // Partie verlassen: alles schließen
+    stop();
+    Array.from(inc.keys()).forEach(dropIn);
+    buttons();
+  }
+  /* Beim Spielstart oder nach neuem Verbinden: den anderen sagen, dass wir ihr Bild (wieder) haben möchten */
+  function announce() {
+    if (!st().net) return buttons();
+    targets().forEach((seat) => { send(seat, { want: 1 }); if (stream) callSeat(seat); });
+    buttons();
+  }
+
+  $('btnCam').addEventListener('click', () => { if (stream) stop(); else start(); });
+  $('btnMic').addEventListener('click', () => {
+    if (!stream) return;
+    micOn = !micOn; stream.getAudioTracks().forEach((t) => { t.enabled = micOn; });
+    buttons();
+  });
+
+  DK.Video = { supported, onSignal, announce, reset, start, stop, buttons };
 })();
 
 </script>
@@ -2852,6 +3040,10 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     const p = link.player, seat = p ? room.players.indexOf(p) : -1;
     if (seat < 0 || p.link !== link) return;
     if (m.t === 'act') { if (room.running) G.remoteMove(seat, m); }
+    else if (m.t === 'rtc') {                      // Videofenster: Nachricht an den Ziel-Platz weiterreichen
+      if (m.to === 0) DK.Video.onSignal(seat, m.d);
+      else { const q = room.players[m.to]; if (q && q.link) q.link.send({ t: 'rtc', from: seat, d: m.d }); }
+    }
     else if (m.t === 'leave') dropPlayer(seat, true);
   }
   function hostClose(link) {
@@ -2939,7 +3131,8 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     if (!cl || !m) return;
     if (m.t === 'welcome') { cl.joined = true; cl.tries = 0; unwait(); }
     else if (m.t === 'deny') { stopClient(false); if (st.net) G.toTitle(); fail(DENY[m.reason] || 'Beitritt nicht möglich.'); }
-    else if (m.t === 'lobby') { if (!st.net) { G.showOnly('lobby'); renderLobby(m, false); } }
+    else if (m.t === 'lobby') { if (st.playing) G.toLobby(); G.showOnly('lobby'); renderLobby(m, false); }
+    else if (m.t === 'rtc') DK.Video.onSignal(m.from, m.d);
     else if (m.t === 'start') G.clientStart(m, clientSession);
     else if (m.t === 'end') { stopClient(false); G.toTitle(m.reason === 'kicked' ? 'Du wurdest aus dem Raum entfernt' : 'Der Gastgeber hat das Spiel beendet'); }
     else G.clientMsg(m);
@@ -3008,6 +3201,12 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   on('btnNetCancel', () => { if (st.net) G.toTitle(); else leaveLobby(); });
   on('btnLobbyLeave', leaveLobby);
   on('btnLobbyStart', startRoomGame);
+  on('btnBackLobby', () => {                      // Revanche: alle zurück in die Lobby
+    if (!room) return;
+    room.running = false;
+    room.players = room.players.filter((p) => p.kind !== 'remote' || p.link);
+    G.toLobby(); sendLobby();
+  });
   on('btnAddCpu', () => {
     if (!room || room.players.length >= 4) return;
     const names = DK.CONFIG.net.cpuNames.filter((n) => !room.players.some((p) => p.name === n));
@@ -3148,6 +3347,37 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   });
   $('btnInstallBack').addEventListener('click', () => DK.Game.back('install'));
   if ('serviceWorker' in navigator && secure) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+  /* ---------- Eigene Lacher aufnehmen (bis zu 3, im Gerät gespeichert) ---------- */
+  const LKEY = 'durak3d.laughs';
+  try { DK.customLaughs = JSON.parse(localStorage.getItem(LKEY) || '[]') || []; } catch (e) { DK.customLaughs = []; }
+  const canRec = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+  let recording = false;
+  function recInfo(text) {
+    const n = DK.customLaughs.length;
+    $('recInfo').textContent = text || (canRec ? (n ? n + ' von 3 aufgenommen' : 'mit dem Mikrofon aufnehmen') : 'braucht https und ein Mikrofon');
+    $('btnRec').disabled = !canRec || recording || n >= 3;
+    $('btnRecPlay').disabled = !n; $('btnRecDel').disabled = !n;
+  }
+  function saveLaughs() { try { localStorage.setItem(LKEY, JSON.stringify(DK.customLaughs)); } catch (e) { /* voll */ } recInfo(); }
+  $('btnRec').addEventListener('click', () => {
+    if (!canRec || recording) return;
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      const mr = new MediaRecorder(stream), chunks = [];
+      recording = true; recInfo('● Aufnahme läuft – jetzt lachen! (3 Sekunden)');
+      mr.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      mr.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop()); recording = false;
+        const fr = new FileReader();
+        fr.onload = () => { DK.customLaughs.push(fr.result); saveLaughs(); new Audio(fr.result).play().catch(() => {}); };
+        fr.readAsDataURL(new Blob(chunks, { type: mr.mimeType || 'audio/webm' }));
+      };
+      mr.start(); setTimeout(() => { if (mr.state !== 'inactive') mr.stop(); }, 3000);
+    }).catch(() => recInfo('Mikrofon nicht erlaubt oder nicht vorhanden'));
+  });
+  $('btnRecPlay').addEventListener('click', () => { const l = DK.customLaughs; if (l.length) new Audio(l[l.length - 1]).play().catch(() => {}); });
+  $('btnRecDel').addEventListener('click', () => { DK.customLaughs.pop(); saveLaughs(); });
+  recInfo();
 })();
 
 </script>

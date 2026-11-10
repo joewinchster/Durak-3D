@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-visual">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0b1a3a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>Durak 3D</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- 3D-Ansicht (wird bei "Spiegeln" horizontal gespiegelt) -->
+  <div id="stage"><canvas id="view"></canvas></div>
+
+  <!-- Spieler-Schilder, folgen den Sitzplätzen -->
+  <div id="labels"></div>
+
+  <!-- Spiel-HUD -->
+  <div id="hud" class="hidden">
+    <div id="topbar">
+      <button id="btnMenu" class="icon" title="Menü">☰</button>
+      <div id="trumpInfo" title="Trumpf und Nachziehstapel"></div>
+      <div id="status"></div>
+      <div class="spacer"></div>
+      <button id="btnMirror" class="icon" title="Ansicht spiegeln (Mirror Display)">⇋</button>
+      <button id="btnReveal" class="icon" title="Alle aufdecken / verdeckt halten (Test)">👁</button>
+      <button id="btnFull" class="icon" title="Vollbild">⛶</button>
+    </div>
+
+    <div id="camCtl">
+      <div class="row">
+        <button id="btnRotL" class="icon" title="15° nach links drehen">⟲</button>
+        <span id="azLabel">0°</span>
+        <button id="btnRotR" class="icon" title="15° nach rechts drehen">⟳</button>
+      </div>
+      <input id="azSlider" type="range" min="0" max="360" step="1" value="0" aria-label="Kamera drehen">
+    </div>
+
+    <div id="hint"></div>
+
+    <div id="actions">
+      <button id="btnPlay" class="act gold">Schlagen</button>
+      <button id="btnTransfer" class="act">Weitergeben</button>
+      <button id="btnTake" class="act red">Nehmen <small>(Bery)</small></button>
+      <button id="btnDone" class="act green">Fertig <small>(Bito)</small></button>
+    </div>
+
+    <div id="awayBar" class="hidden"><span id="awayText"></span>
+      <button id="btnTakeover" class="ghost">🤖 Computer übernimmt</button></div>
+    <div id="toast"></div>
+  </div>
+
+  <div id="announce"></div>
+  <canvas id="fx"></canvas>
+
+  <!-- Titelbild -->
+  <section id="title" class="screen">
+    <div id="logo"></div>
+    <div class="titleRight">
+      <h1>DURAK</h1>
+      <p class="sub">Das Kartenspiel in 3D · 36 Karten</p>
+      <button id="btnStart" class="big">▶ Spiel starten</button>
+      <button id="btnOnline" class="big alt">🌐 Online spielen</button>
+      <button id="btnOptions" class="ghost">⚙ Optionen</button>
+      <div class="btnRow tight">
+        <button id="btnScores" class="ghost">🏆 Punktestand</button>
+        <button id="btnFullTitle" class="ghost">⛶ Vollbild</button>
+        <button id="btnInstall" class="ghost hidden">⬇ Als App installieren</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Optionen -->
+  <section id="options" class="screen hidden">
+    <div class="panel">
+      <h2>Optionen</h2>
+      <div class="opt"><span>🎵 Musik</span>
+        <input type="range" min="0" max="100" data-set="musicVol" aria-label="Musik-Lautstärke">
+        <button class="tog" data-set="music"></button></div>
+      <div class="opt"><span>🎼 Musikstück</span>
+        <div class="seg" data-set="musicTrack"><button data-val="0">Volksweise</button><button data-val="1">Abendruhe</button><button data-val="2">Tanz</button></div></div>
+      <div class="opt"><span>🃏 Karten-Sounds <small>Legen &amp; Nehmen</small></span>
+        <input type="range" min="0" max="100" data-set="sfxVol" aria-label="Effekt-Lautstärke">
+        <button class="tog" data-set="sfx"></button></div>
+      <div class="opt"><span>😂 Lacher &amp; Gewinner-Effekt</span><button class="tog" data-set="laughs"></button></div>
+      <div class="opt"><span>🎥 Kamera schwenkt zum Spieler</span><button class="tog" data-set="autoCam"></button></div>
+      <div class="opt"><span>📱 Übergabe-Bildschirm <small>„Gerät weitergeben“ vor jedem Zug</small></span><button class="tog" data-set="handover"></button></div>
+      <div class="opt"><span>Sichtschutz <small>Handkarten aufdecken</small></span>
+        <div class="seg" data-set="peek"><button data-val="tap">Antippen</button><button data-val="hold">Halten</button><button data-val="auto">Offen</button></div>
+      </div>
+      <div class="btnRow"><button id="btnOptBack" class="big small">Zurück</button></div>
+    </div>
+  </section>
+
+  <!-- Aufstellung: Spieler, Namen, Computer-Gegner, Regeln -->
+  <section id="setup" class="screen hidden">
+    <div class="panel wide">
+      <h2>Neues Spiel</h2>
+      <div class="cols">
+        <div>
+          <div class="opt"><span>Spieler</span>
+            <div class="seg" data-set="players"><button data-val="2">2</button><button data-val="3">3</button><button data-val="4">4</button></div>
+          </div>
+          <div id="playerRows"></div>
+        </div>
+        <div>
+          <div class="opt"><span>Karten</span>
+            <div class="seg" data-set="deck"><button data-val="36">36</button><button data-val="52">52</button></div></div>
+          <div class="opt"><span>↪ Weitergeben erlaubt</span><button class="tog" data-set="transfer"></button></div>
+          <div class="opt"><span>Erster Angriff max. 5 Karten</span><button class="tog" data-set="first5"></button></div>
+          <div class="opt"><span>↻ Im Uhrzeigersinn spielen</span><button class="tog" data-set="clockwise"></button></div>
+        </div>
+      </div>
+      <div class="btnRow">
+        <button id="btnSetupBack" class="ghost">Zurück</button>
+        <button id="btnGo" class="big small">▶ Los geht's</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Übergabe: Gerät an den nächsten Spieler weitergeben -->
+  <section id="handover" class="screen solid hidden">
+    <div class="panel narrow center">
+      <div class="handIcon">📱</div>
+      <h2 id="handName">Spieler</h2>
+      <p id="handText"></p>
+      <button id="btnReady" class="big small">Ich bin bereit</button>
+    </div>
+  </section>
+
+  <!-- Punktestand -->
+  <section id="scores" class="screen hidden">
+    <div class="panel narrow center">
+      <h2>🏆 Punktestand</h2>
+      <div class="scoreBox"></div>
+      <div class="btnRow">
+        <button id="btnScoresReset" class="ghost">Zurücksetzen</button>
+        <button id="btnScoresBack" class="big small">Zurück</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Online: Namen eingeben, Spiel eröffnen oder beitreten -->
+  <section id="online" class="screen hidden">
+    <div class="panel">
+      <h2>🌐 Online spielen</h2>
+      <p id="onlineHint" class="small">Jeder spielt auf seinem eigenen Gerät – zu Hause oder über das Internet.</p>
+      <div class="opt"><span>Dein Name</span>
+        <input id="myName" class="txt" type="text" maxlength="14" placeholder="Name eingeben" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done"></div>
+      <div class="opt"><span>Neues Spiel für andere öffnen</span>
+        <button id="btnHost" class="big small">🏠 Spiel eröffnen</button></div>
+      <div class="opt"><span>Einem Spiel beitreten</span>
+        <input id="joinCode" class="txt code" type="text" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go">
+        <button id="btnJoin" class="big small alt">Beitreten</button></div>
+      <div class="btnRow"><button id="btnOnlineBack" class="ghost">Zurück</button></div>
+    </div>
+  </section>
+
+  <!-- Lobby: Raum-Code, Mitspieler, Start -->
+  <section id="lobby" class="screen hidden">
+    <div class="panel wide">
+      <div class="cols">
+        <div>
+          <h2>Raum <span id="lobbyCode" class="codeBig"></span></h2>
+          <p id="lobbyUrl" class="small"></p>
+          <button id="btnShare" class="ghost">🔗 Einladung teilen</button>
+          <div id="lobbyHost">
+            <div class="opt"><span>Karten</span>
+              <div class="seg" data-set="deck"><button data-val="36">36</button><button data-val="52">52</button></div></div>
+            <div class="opt"><span>↪ Weitergeben</span><button class="tog" data-set="transfer"></button></div>
+            <div class="opt"><span>Erster Angriff max. 5</span><button class="tog" data-set="first5"></button></div>
+            <div class="opt"><span>↻ Im Uhrzeigersinn</span><button class="tog" data-set="clockwise"></button></div>
+          </div>
+          <div id="lobbyGuest" class="hidden"><p id="lobbyRules" class="small"></p><p>Warte, bis der Gastgeber das Spiel startet …</p></div>
+        </div>
+        <div>
+          <h2>Spieler</h2>
+          <div id="lobbyList"></div>
+          <div class="btnRow tight"><button id="btnAddCpu" class="ghost">+ 🤖 Computer</button></div>
+        </div>
+      </div>
+      <div class="btnRow">
+        <button id="btnLobbyLeave" class="ghost">Verlassen</button>
+        <button id="btnLobbyStart" class="big small">▶ Spiel starten</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Als App installieren: Anleitung -->
+  <section id="install" class="screen hidden">
+    <div class="panel narrow center">
+      <h2>⬇ Als App installieren</h2>
+      <p id="installText"></p>
+      <div class="btnRow"><button id="btnInstallBack" class="big small">Zurück</button></div>
+    </div>
+  </section>
+
+  <!-- Pausenmenü -->
+  <section id="menu" class="screen hidden">
+    <div class="panel narrow center">
+      <h2>Pause</h2>
+      <div class="btnCol">
+        <button id="btnResume" class="big small">Weiter</button>
+        <button id="btnMenuOptions" class="ghost">⚙ Optionen</button>
+        <button id="btnMenuScores" class="ghost">🏆 Punktestand</button>
+        <button id="btnRestart" class="ghost">Neu starten</button>
+        <button id="btnQuit" class="ghost">Titelbild</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Spielende -->
+  <section id="gameover" class="screen hidden">
+    <div class="panel narrow center">
+      <div class="suits">♠ <i>♥</i> ♣ <i>♦</i></div>
+      <h2 id="overTitle">Spielende</h2>
+      <p id="overText"></p>
+      <p id="overWait" class="hidden small">Der Gastgeber kann ein neues Spiel starten …</p>
+      <div class="scoreBox"></div>
+      <div class="btnRow">
+        <button id="btnAgain" class="big small">Nochmal spielen</button>
+        <button id="btnToTitle" class="ghost">Titelbild</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Verbindungsaufbau -->
+  <section id="netwait" class="screen solid hidden">
+    <div class="panel narrow center">
+      <div class="handIcon">📡</div>
+      <p id="netText">Verbinde …</p>
+      <button id="btnNetCancel" class="ghost">Abbrechen</button>
+    </div>
+  </section>
+
+  <!-- Bildschirmtastatur für Touchscreens am PC -->
+  <div id="osk" class="hidden"></div>
+
+  <div id="rotate"><div>📱↻<br>Bitte das Gerät ins Querformat drehen</div></div>
+  <div id="fatal" class="hidden"></div>
+
+  <script src="vendor/three.min.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/rules.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/textures.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/scene.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/net.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/online.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

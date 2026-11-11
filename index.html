@@ -311,6 +311,30 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
 #videos { touch-action: none; cursor: grab; pointer-events: auto !important; }
 #videos:empty { display: none !important; }
 
+/* ---------- Aufgeräumte Oberfläche: nichts wird abgeschnitten, nur nutzbare Knöpfe sind sichtbar ---------- */
+.panel { overflow-x: hidden; }
+.cols { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+.cols > div { min-width: 0; }
+.opt { flex-wrap: wrap; row-gap: 6px; }
+.opt > span { min-width: 8em; }
+.seg { flex-wrap: wrap; max-width: 100%; }
+.prow { flex-wrap: wrap; }
+.prow input { flex: 1 1 7em; }
+.act:disabled { display: none; }
+.ghost.on { background: linear-gradient(#f7d77a, #d9a233); color: #2a1a00; border-color: #fff3c4; }
+@media (max-width: 620px), (orientation: portrait) { .cols { grid-template-columns: minmax(0, 1fr); } }
+/* Videofenster größer */
+.vtile { width: clamp(130px, 19vw, 230px); }
+.vtile.own { width: clamp(64px, 9vw, 110px); }
+.vtile.big { width: clamp(240px, 42vw, 480px); }
+@media (orientation: portrait) {
+  .vtile { width: clamp(120px, 36vw, 190px); } .vtile.own { width: clamp(60px, 17vw, 96px); } .vtile.big { width: 78vw; }
+  #status { max-width: 56vw; }
+}
+/* Hinweis oben statt mitten über dem Tisch */
+#hint { top: clamp(50px, 8.5vw, 64px); bottom: auto; }
+@media (orientation: portrait) { #hint { top: clamp(50px, 13vw, 64px); bottom: auto; } }
+
 </style>
 </head>
 <body>
@@ -329,20 +353,9 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
       <div class="spacer"></div>
       <button id="btnCam" class="icon hidden" title="Kamera und Mikrofon ein/aus">📹</button>
       <button id="btnMic" class="icon hidden" title="Mikrofon stumm">🎤</button>
-      <button id="btnZoom" class="icon" title="Tisch heranholen">🔍</button>
-      <button id="btnMirror" class="icon" title="Ansicht spiegeln (Mirror Display)">⇋</button>
-      <button id="btnReveal" class="icon" title="Alle aufdecken / verdeckt halten (Test)">👁</button>
       <button id="btnFull" class="icon" title="Vollbild">⛶</button>
     </div>
 
-    <div id="camCtl">
-      <div class="row">
-        <button id="btnRotL" class="icon" title="15° nach links drehen">⟲</button>
-        <span id="azLabel">0°</span>
-        <button id="btnRotR" class="icon" title="15° nach rechts drehen">⟳</button>
-      </div>
-      <input id="azSlider" type="range" min="0" max="360" step="1" value="0" aria-label="Kamera drehen">
-    </div>
 
     <div id="hint"></div>
 
@@ -395,6 +408,8 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
       <div class="opt"><span>🎙 Eigener Lacher <small id="recInfo">mit dem Mikrofon aufnehmen</small></span>
         <button id="btnRec" class="ghost">● Aufnehmen</button><button id="btnRecPlay" class="ghost">▶</button><button id="btnRecDel" class="ghost">✕</button></div>
       <div class="opt"><span>🎥 Kamera schwenkt zum Spieler</span><button class="tog" data-set="autoCam"></button></div>
+      <div class="opt"><span>🏠 Raum</span>
+        <div class="seg" data-set="room"><button data-val="terrasse">Terrasse</button><button data-val="stube">Stube</button><button data-val="casino">Casino</button><button data-val="kamin">Kaminzimmer</button><button data-val="garten">Garten</button></div></div>
       <div class="opt"><span>🃏 Handkarten sortieren</span>
         <div class="seg" data-set="sort"><button data-val="rank">Nach Wert</button><button data-val="suit">Nach Farbe</button></div></div>
       <div class="opt"><span>📱 Übergabe-Bildschirm <small>„Gerät weitergeben“ vor jedem Zug</small></span><button class="tog" data-set="handover"></button></div>
@@ -520,6 +535,8 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
         <button id="btnResume" class="big small">Weiter</button>
         <button id="btnMenuOptions" class="ghost">⚙ Optionen</button>
         <button id="btnMenuScores" class="ghost">🏆 Punktestand</button>
+        <button id="btnMirror" class="ghost">⇋ Ansicht spiegeln</button>
+        <button id="btnReveal" class="ghost">👁 Alle Karten aufdecken (Test)</button>
         <button id="btnRestart" class="ghost">Neu starten</button>
         <button id="btnQuit" class="ghost">Titelbild</button>
       </div>
@@ -650,7 +667,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     music: true, musicVol: 60, musicTrack: 0, sfx: true, sfxVol: 80, laughs: true,
     players: 4, names: ['Spieler 1', 'Spieler 2', 'Spieler 3', 'Spieler 4'], cpu: [false, false, false, false],
     myName: '', peek: 'tap', handover: true, autoCam: true,
-    transfer: true, first5: true, deck: 36, clockwise: false, cpuLevel: 'normal', sort: 'rank'
+    transfer: true, first5: true, deck: 36, clockwise: false, cpuLevel: 'normal', sort: 'rank', room: 'terrasse'
   };
   function load(key) { try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { return {}; } }
   function save(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* privat/gesperrt */ } }
@@ -855,7 +872,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     }
     _endRound(taken) {
       const def = this.defender;
-      const cards = [];
+      const cards = [], pairs = this.field.map((f) => ({ attack: f.attack, defense: f.defense }));
       this.field.forEach((f) => { cards.push(f.attack); if (f.defense) cards.push(f.defense); });
       if (taken) this.players[def].hand.push(...cards); else this.discard.push(...cards);
       const order = this._throwOrder(); order.push(def);
@@ -868,7 +885,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       const outs = [];
       this.players.forEach((pl, i) => { if (!pl.out && pl.hand.length === 0) { pl.out = true; outs.push(i); } });
       const remaining = this.players.filter((pl) => !pl.out);
-      const ev = { ok: true, roundEnd: { taken, defender: def, count: cards.length, draws, outs } };
+      const ev = { ok: true, roundEnd: { taken, defender: def, count: cards.length, draws, outs, pairs } };
       if (remaining.length <= 1) {
         this.phase = 'over'; this.mode = null; this.actor = -1;
         this.loser = remaining.length ? remaining[0].id : null;
@@ -1732,7 +1749,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     ghost = new THREE.PerspectiveCamera(CC.fov, 2, 0.5, 80);
     raycaster = new THREE.Raycaster();
 
-    scene.add(new THREE.HemisphereLight(0xfff4de, 0x2a3560, 0.82));
+    const hemi = new THREE.HemisphereLight(0xfff4de, 0x2a3560, 0.82); scene.add(hemi);
     const sun = new THREE.DirectionalLight(0xffe6bd, 0.62);
     sun.position.set(5, 14, 6); sun.castShadow = true;
     const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
@@ -1753,6 +1770,11 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     rim.rotation.x = -Math.PI / 2; rim.position.y = -0.32; rim.castShadow = true; rim.receiveShadow = true; scene.add(rim);
     const body = new THREE.Mesh(new THREE.ExtrudeGeometry(outer, { depth: 0.5, bevelEnabled: false, curveSegments: 24 }), new THREE.MeshStandardMaterial({ color: 0x2a1408, roughness: 0.8 }));
     body.rotation.x = -Math.PI / 2; body.position.y = -0.9; scene.add(body);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {            // Tischbeine bis zum Boden des Raums
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.26, 3.4, 14), new THREE.MeshStandardMaterial({ color: 0x2a1408, roughness: 0.8 }));
+      leg.position.set(sx * (TB.W / 2 - 1.4), -2.55, sz * (TB.D / 2 - 1.2)); scene.add(leg);
+    }
+    api.ctx = { scene, hemi, sun };
 
     // Karten-Geometrie (flacher Quader mit runden Ecken)
     const shape = roundedRect(CARD.W, CARD.H, CARD.R);
@@ -1836,17 +1858,23 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       }
     });
 
+    // Karten der gerade beendeten Runde bleiben kurz auf dem Tisch liegen (v.holdField)
+    const held = new Set();
+    (v.holdField || []).forEach((f) => { held.add(f.attack.id); if (f.defense) held.add(f.defense.id); });
+    const fieldPairs = v.holdField || g.field;
+
     // Ablagestapel (Bito)
     g.discard.forEach((c, i) => {
+      if (held.has(c.id)) return;
       const h = hash(c.id);
       o_set(c.id, new V3(DISCARD.x + ((h % 7) - 3) * 0.05, T / 2 + i * 0.013, DISCARD.z + (((h >> 3) % 7) - 3) * 0.05), flatQuat(((h % 60) - 30) * DEG, false), opt(c.id, {}));
     });
 
     // Spielfeld: Angriff/Verteidigung als Paare, zum aktuellen Spieler gedreht
-    const yaw = v.fieldYaw || 0, n = g.field.length;
+    const yaw = v.fieldYaw || 0, n = fieldPairs.length;
     const right = new V3(Math.cos(yaw), 0, -Math.sin(yaw)), toward = new V3(Math.sin(yaw), 0, Math.cos(yaw));
     fieldWorld = [];
-    g.field.forEach((f, i) => {
+    fieldPairs.forEach((f, i) => {
       let lx, lz;
       if (n <= 3) { lx = (i - (n - 1) / 2) * 2.15; lz = 0; }
       else if (i < 3) { lx = (i - 1) * 2.15; lz = -1.15; }
@@ -1864,7 +1892,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
 
     // Hände
     g.players.forEach((pl, p) => {
-      const hand = sortHand(pl.hand, g.trumpSuit), m = hand.length;
+      const hand = sortHand(held.size ? pl.hand.filter((c) => !held.has(c.id)) : pl.hand, g.trumpSuit), m = hand.length;
       if (p === v.actor) return fan(hand, p, v, opt);
       const a = seats[p], rest = seatRest(p), tang = new V3(Math.cos(a), 0, -Math.sin(a));
       const s = m > 1 ? Math.min(0.3, 2.7 / (m - 1)) : 0, up = !!v.revealAll;
@@ -1940,6 +1968,163 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     getZoom() { return lensZoom; },
     getAzDeg() { return (((cam.target / DEG) % 360) + 360) % 360; }
   });
+})();
+
+</script>
+  <script>
+/* Durak 3D – Räume: Umgebung um den Tisch (Boden, Teppich, Wände, Licht), in den Optionen wählbar.
+ * Alles wird als Canvas-Textur gezeichnet – keine Bilddateien nötig.
+ */
+(function () {
+  'use strict';
+  const DK = window.DK;
+  const FLOOR_Y = -4.2, RADIUS = 30, WALL_H = 46;
+  function cv(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+  function rnd(seed) { let s = seed; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+
+  /* ---------- Böden ---------- */
+  function planks(base, line) {
+    const c = cv(512, 512), x = c.getContext('2d'), r = rnd(5);
+    x.fillStyle = base; x.fillRect(0, 0, 512, 512);
+    for (let row = 0; row < 8; row++) {
+      const y = row * 64, off = (row % 2) * 128;
+      x.fillStyle = 'rgba(255,255,255,' + (0.02 + r() * 0.06) + ')'; x.fillRect(0, y, 512, 64);
+      for (let i = 0; i < 26; i++) {
+        x.strokeStyle = r() > 0.5 ? 'rgba(0,0,0,.10)' : 'rgba(255,220,170,.07)'; x.lineWidth = 1 + r() * 1.5;
+        const yy = y + r() * 64; x.beginPath(); x.moveTo(0, yy); x.bezierCurveTo(170, yy + r() * 6 - 3, 340, yy + r() * 6 - 3, 512, yy); x.stroke();
+      }
+      x.fillStyle = line; x.fillRect(0, y, 512, 3);
+      for (let k = 0; k < 3; k++) x.fillRect((off + k * 256) % 512, y, 3, 64);
+    }
+    return c;
+  }
+  function carpet(base, accent) {
+    const c = cv(256, 256), x = c.getContext('2d');
+    x.fillStyle = base; x.fillRect(0, 0, 256, 256);
+    x.strokeStyle = accent; x.globalAlpha = 0.5; x.lineWidth = 3;
+    for (let i = -256; i < 512; i += 64) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + 256, 256); x.stroke(); x.beginPath(); x.moveTo(i, 256); x.lineTo(i + 256, 0); x.stroke(); }
+    x.globalAlpha = 0.9; x.fillStyle = accent;
+    for (let yy = 0; yy <= 256; yy += 64) for (let xx = 0; xx <= 256; xx += 64) { x.beginPath(); x.arc(xx, yy, 6, 0, 7); x.fill(); }
+    return c;
+  }
+  function grass() {
+    const c = cv(512, 512), x = c.getContext('2d'), r = rnd(9);
+    x.fillStyle = '#3f8a3a'; x.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 9000; i++) {
+      x.strokeStyle = ['#2f7030', '#56a84a', '#6cbf55', '#2a6229'][Math.floor(r() * 4)]; x.lineWidth = 1.2;
+      const px = r() * 512, py = r() * 512; x.beginPath(); x.moveTo(px, py); x.lineTo(px + r() * 4 - 2, py - 4 - r() * 6); x.stroke();
+    }
+    for (let i = 0; i < 40; i++) { x.fillStyle = r() > 0.5 ? '#fff6c0' : '#ffffff'; x.beginPath(); x.arc(r() * 512, r() * 512, 2.2, 0, 7); x.fill(); }
+    return c;
+  }
+  function rugTex(base, accent) {
+    const c = cv(512, 512), x = c.getContext('2d');
+    x.fillStyle = base; x.fillRect(0, 0, 512, 512);
+    x.strokeStyle = accent; x.lineWidth = 14; x.beginPath(); x.arc(256, 256, 236, 0, 7); x.stroke();
+    x.lineWidth = 4; x.beginPath(); x.arc(256, 256, 206, 0, 7); x.stroke();
+    for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12; x.fillStyle = accent; x.beginPath(); x.arc(256 + Math.cos(a) * 172, 256 + Math.sin(a) * 172, 9, 0, 7); x.fill(); }
+    return c;
+  }
+
+  /* ---------- Wände (werden rundherum 6-mal wiederholt) ---------- */
+  function wallpaper(c1, c2, wood) {
+    const c = cv(512, 512), x = c.getContext('2d');
+    for (let i = 0; i < 16; i++) { x.fillStyle = i % 2 ? c1 : c2; x.fillRect(i * 32, 0, 32, 512); }
+    x.fillStyle = wood; x.fillRect(0, 330, 512, 182);
+    x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(0, 330, 512, 8);
+    x.strokeStyle = 'rgba(0,0,0,.25)'; x.lineWidth = 4;
+    for (let i = 0; i < 4; i++) x.strokeRect(i * 128 + 16, 362, 96, 120);
+    // gerahmtes Bild
+    x.fillStyle = '#6b4a22'; x.fillRect(196, 90, 120, 150); x.fillStyle = '#e9dfc4'; x.fillRect(208, 102, 96, 126);
+    x.fillStyle = '#7fa6c9'; x.fillRect(208, 102, 96, 70); x.fillStyle = '#5c8a4f'; x.fillRect(208, 172, 96, 56);
+    return c;
+  }
+  function casinoWall() {
+    const c = cv(512, 512), x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, 512); g.addColorStop(0, '#12060a'); g.addColorStop(0.6, '#3a0d16'); g.addColorStop(1, '#1a0508');
+    x.fillStyle = g; x.fillRect(0, 0, 512, 512);
+    x.strokeStyle = '#d9a43a'; x.lineWidth = 5; x.strokeRect(40, 150, 432, 320); x.lineWidth = 2; x.strokeRect(56, 166, 400, 288);
+    x.fillStyle = '#d9a43a'; x.font = 'bold 150px Georgia, serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.globalAlpha = 0.85; x.fillText('♠ ♥', 256, 250); x.fillText('♣ ♦', 256, 380); x.globalAlpha = 1;
+    for (let i = 0; i < 9; i++) { x.fillStyle = '#ffe9a0'; x.beginPath(); x.arc(28 + i * 57, 110, 7, 0, 7); x.fill(); }
+    return c;
+  }
+  function library() {
+    const c = cv(512, 512), x = c.getContext('2d'), r = rnd(3);
+    x.fillStyle = '#2a190e'; x.fillRect(0, 0, 512, 512);
+    const cols = ['#7a1f1f', '#1f4a3a', '#27406f', '#8a6a1c', '#4a2a55', '#5a3418'];
+    for (let shelf = 0; shelf < 4; shelf++) {
+      const y = 60 + shelf * 100;
+      let px = 14;
+      while (px < 300) { const w = 10 + r() * 16, h = 62 + r() * 24; x.fillStyle = cols[Math.floor(r() * cols.length)]; x.fillRect(px, y + 88 - h, w, h); x.fillStyle = 'rgba(255,220,140,.5)'; x.fillRect(px + 2, y + 96 - h, w - 4, 3); px += w + 2; }
+      x.fillStyle = '#4a2c16'; x.fillRect(0, y + 88, 312, 10);
+    }
+    // Kamin
+    x.fillStyle = '#5a5048'; x.fillRect(336, 250, 160, 262); x.fillStyle = '#3a332e'; x.fillRect(326, 236, 180, 20);
+    x.fillStyle = '#120a06'; x.fillRect(362, 320, 108, 192);
+    const f = x.createRadialGradient(416, 490, 6, 416, 470, 90); f.addColorStop(0, '#fff2a8'); f.addColorStop(0.35, '#ff9a2e'); f.addColorStop(1, 'rgba(255,80,0,0)');
+    x.fillStyle = f; x.fillRect(362, 360, 108, 152);
+    return c;
+  }
+  function gardenWall() {
+    const c = cv(512, 512), x = c.getContext('2d'), r = rnd(8);
+    const g = x.createLinearGradient(0, 0, 0, 512); g.addColorStop(0, '#5aa7e8'); g.addColorStop(0.62, '#cfe9fb'); g.addColorStop(0.63, '#4f9a45'); g.addColorStop(1, '#3f8a3a');
+    x.fillStyle = g; x.fillRect(0, 0, 512, 512);
+    x.fillStyle = 'rgba(255,255,255,.9)';
+    [[90, 120, 46], [140, 110, 36], [360, 170, 40], [410, 180, 30]].forEach((p) => { x.beginPath(); x.ellipse(p[0], p[1], p[2], p[2] * 0.5, 0, 0, 7); x.fill(); });
+    for (let i = 0; i < 9; i++) {
+      const px = i * 60 + r() * 20, h = 90 + r() * 70;
+      x.fillStyle = '#5a3a1c'; x.fillRect(px + 22, 320 - h * 0.3, 10, h * 0.5);
+      x.fillStyle = ['#2f7030', '#3d8a3a', '#2a6229'][i % 3]; x.beginPath(); x.arc(px + 27, 320 - h * 0.5, 34 + r() * 14, 0, 7); x.fill();
+    }
+    x.fillStyle = '#2f7030'; x.fillRect(0, 316, 512, 30);
+    return c;
+  }
+
+  const ROOMS = [
+    { id: 'terrasse', name: 'Terrasse', floor: () => planks('#6b4a2e', 'rgba(20,10,4,.55)'), rep: 9, wall: null,
+      hemi: [0xfff4de, 0x2a3560, 0.82], sun: [0xffe6bd, 0.62] },
+    { id: 'stube', name: 'Stube', floor: () => planks('#9a6a3c', 'rgba(40,20,8,.5)'), rep: 9, rug: ['#8e1a20', '#e9c46a'],
+      wall: () => wallpaper('#e2d2ac', '#d4c095', '#6b4424'), hemi: [0xfff1d6, 0x5a4634, 0.9], sun: [0xffe9c4, 0.6] },
+    { id: 'casino', name: 'Casino', floor: () => carpet('#4a0d18', '#d9a43a'), rep: 14, wall: casinoWall,
+      hemi: [0xffe2b0, 0x2a0810, 0.78], sun: [0xfff0c8, 0.7] },
+    { id: 'kamin', name: 'Kaminzimmer', floor: () => planks('#3b2416', 'rgba(0,0,0,.6)'), rep: 9, rug: ['#1f4a3a', '#d9a43a'],
+      wall: library, hemi: [0xffcf99, 0x24140a, 0.74], sun: [0xffb066, 0.68] },
+    { id: 'garten', name: 'Garten', floor: grass, rep: 10, wall: gardenWall,
+      hemi: [0xeaf6ff, 0x3f7a3a, 0.98], sun: [0xffffff, 0.72] }
+  ];
+
+  let group = null;
+  function tex(canvas, rx, ry) {
+    const t = new THREE.CanvasTexture(canvas); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); return t;
+  }
+  function apply(id) {
+    const c = DK.Scene.ctx; if (!c) return;
+    const R = ROOMS.find((r) => r.id === id) || ROOMS[0];
+    if (group) {
+      c.scene.remove(group);
+      group.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
+    }
+    group = new THREE.Group();
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(RADIUS, 48), new THREE.MeshStandardMaterial({ map: tex(R.floor(), R.rep, R.rep), roughness: 0.9, metalness: 0 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.y = FLOOR_Y; floor.receiveShadow = true; group.add(floor);
+    if (R.rug) {
+      const rug = new THREE.Mesh(new THREE.CircleGeometry(12.5, 48), new THREE.MeshStandardMaterial({ map: tex(rugTex(R.rug[0], R.rug[1]), 1, 1), roughness: 1 }));
+      rug.rotation.x = -Math.PI / 2; rug.position.y = FLOOR_Y + 0.02; rug.receiveShadow = true; group.add(rug);
+    }
+    if (R.wall) {
+      const wall = new THREE.Mesh(new THREE.CylinderGeometry(RADIUS, RADIUS, WALL_H, 48, 1, true), new THREE.MeshBasicMaterial({ map: tex(R.wall(), 6, 1), side: THREE.BackSide }));
+      wall.position.y = FLOOR_Y + WALL_H / 2; group.add(wall);
+    }
+    c.scene.add(group);
+    c.hemi.color.setHex(R.hemi[0]); c.hemi.groundColor.setHex(R.hemi[1]); c.hemi.intensity = R.hemi[2];
+    c.sun.color.setHex(R.sun[0]); c.sun.intensity = R.sun[1];
+    const stage = document.getElementById('stage');
+    stage.style.backgroundImage = !R.wall && Rooms.sunset ? 'url("' + Rooms.sunset + '")' : '';
+    stage.style.backgroundSize = 'cover';
+  }
+  const Rooms = (DK.Rooms = { list: ROOMS, apply, sunset: '' });
 })();
 
 </script>
@@ -2330,7 +2515,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     if (!st.selected) st.multi.clear();
     S.layout({
       game: g, actor: st.actor, revealed: isRevealed(), revealAll: st.revealAll || st.over, selected: st.selected, multi: st.multi,
-      dragging: st.dragging, playable: isRevealed() ? playableSet() : null, trumpShown: st.trumpShown,
+      dragging: st.dragging, playable: isRevealed() ? playableSet() : null, trumpShown: st.trumpShown, holdField: st.holdField,
       showCard: st.showCard, fieldYaw: st.fieldYaw, stagger: st.stagger
     });
     st.stagger = null;
@@ -2352,6 +2537,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
         field: g.field.map((f) => [f.attack.id, f.defense ? f.defense.id : null])
       },
       v: {
+        hold: st.holdField ? st.holdField.map((f) => [f.attack.id, f.defense ? f.defense.id : null]) : null,
         tr: st.trumpShown, show: st.showCard, stagger: stagger || null, over: st.over, wait: st.awaitSeat, acts: st.acts,
         away: st.away.slice(), kind: st.kind.map((k, i) => (isCpu(i) ? 'cpu' : 'human'))
       }
@@ -2439,7 +2625,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     Object.assign(st, {
       cfg, net: cfg.net, me: cfg.me, names: cfg.names.slice(), kind: cfg.kinds.slice(), auto: [], away: cfg.kinds.map(() => false),
       playing: true, actor: -1, turnOf: -1, lastHuman: -1, revealed: false, hold: false, selected: null, dragging: null, busy: true,
-      trumpShown: false, showCard: null, fieldYaw: 0, over: false, winner: null, solo: mySeats.length === 1, mySeat: mySeats[0],
+      trumpShown: false, showCard: null, fieldYaw: 0, over: false, winner: null, solo: mySeats.length === 1, mySeat: mySeats[0], holdField: null,
       ready: null, awaitSeat: -1, acts: 0, revealAll: false, gid: DK.Net ? DK.Net.rid(6) : ''
     });
     $('btnReveal').classList.remove('on');
@@ -2531,7 +2717,13 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     if (ev.roundEnd) {
       const r = ev.roundEnd;
       st.revealed = false; st.hold = false;
-      st.stagger = new Map(); r.draws.forEach((d, i) => st.stagger.set(d.card.id, 0.75 + i * 0.11));
+      // Die Karten bleiben noch kurz liegen, damit jeder sieht, womit geschlagen wurde
+      const HOLD = r.taken ? 800 : 2000;
+      st.holdField = r.pairs;
+      st.stagger = new Map(); r.draws.forEach((d, i) => st.stagger.set(d.card.id, HOLD / 1000 + 0.75 + i * 0.11));
+      renderAll();
+      await sleep(HOLD); if (ep !== st.epoch) return;
+      st.holdField = null;
       P.sfx(r.taken ? 'take' : 'bito');
       P.announce(r.taken ? pname(r.defender) + ' nimmt ' + r.count + ' Karten' : 'Bito! Abgewehrt', 1300);
       if (r.taken && r.count >= 5 && Math.random() < 0.75) setTimeout(() => { if (ep === st.epoch) P.laugh(); }, 450);   // Lacher nach langem Gefecht
@@ -2671,6 +2863,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     if (!isClient() || !st.cards) return;
     const v = m.v, g = (st.game = hydrate(m.g));
     st.seq = m.seq; st.acts = v.acts;
+    st.holdField = v.hold ? v.hold.map((f) => ({ attack: st.cards.get(f[0]), defense: f[1] ? st.cards.get(f[1]) : null })) : null;
     st.trumpShown = v.tr; st.showCard = v.show; st.stagger = v.stagger ? new Map(v.stagger) : null; st.over = v.over; st.away = v.away;
     st.kind = v.kind.map((k, i) => (i === st.me ? 'local' : k === 'cpu' ? 'cpu' : 'remote'));
     if (g.phase === 'play' && !st.swung) { st.swung = true; st.fieldYaw = S.seatAz(st.me); if (set.autoCam) S.swingTo(st.me); }
@@ -2823,7 +3016,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   view.addEventListener('contextmenu', (e) => e.preventDefault());
 
   /* ---------- Zoom auf den Tisch: 🔍, Mausrad oder zwei Finger ---------- */
-  function setZoom(z) { S.setZoom(z); $('btnZoom').classList.toggle('on', S.getZoom() > 1.05); }
+  function setZoom(z) { S.setZoom(z); }
   view.addEventListener('wheel', (e) => { e.preventDefault(); setZoom(S.getZoom() * (e.deltaY < 0 ? 1.12 : 0.89)); }, { passive: false });
   let pinch = 0;
   const spread = (e) => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
@@ -2858,19 +3051,12 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   on('btnFullTitle', UI.fullscreen);
   on('btnMirror', () => { S.mirrored = !S.mirrored; $('stage').classList.toggle('mirror', S.mirrored); $('btnMirror').classList.toggle('on', S.mirrored); });
   on('btnReveal', () => { if (st.net) return; st.revealAll = !st.revealAll; $('btnReveal').classList.toggle('on', st.revealAll); A.play('flip'); render(); });
-  on('btnZoom', () => setZoom(S.getZoom() > 1.05 ? 1 : 2));
-  on('btnRotL', () => S.rotateBy(-15 * DEG));
-  on('btnRotR', () => S.rotateBy(15 * DEG));
   on('btnPlay', () => { const c = selectedCard(); if (c && myTurn()) playCard(c, null); });
   on('btnTransfer', () => { const c = selectedCard(); if (c) submit({ type: 'transfer', id: c.id }, 'place'); });
   on('btnTake', () => submit({ type: 'take' }, 'click'));
   on('btnDone', () => submit({ type: 'pass' }, 'click'));
   if (!UI.canFullscreen) { UI.show('btnFull', false); UI.show('btnFullTitle', false); }
 
-  let sliding = false;
-  const slider = $('azSlider');
-  slider.addEventListener('input', () => { sliding = true; S.setAzDeg(+slider.value); });
-  ['change', 'pointerup', 'pointercancel'].forEach((ev) => slider.addEventListener(ev, () => { sliding = false; }));
 
   UI.buildPlayerRows();
   UI.bindSettings((k) => {
@@ -2878,19 +3064,18 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     if (k === 'sfxVol' || k === 'sfx') A.play('place');
     if (k === 'laughs' && set.laughs) A.laugh(1);
     if (k === 'sort') render();
+    if (k === 'room') DK.Rooms.apply(set.room);
     if (k === 'peek' && st.playing && !st.busy) { st.revealed = set.peek === 'auto' && myTurn(); render(); }
     if (DK.Online) DK.Online.settingChanged(k);
   });
 
   /* ---------- Start ---------- */
   const bg = DK.asset(DK.CONFIG.assetPaths.background, true);
-  if (bg) $('stage').style.backgroundImage = 'url("' + bg + '")';
+  DK.Rooms.sunset = bg || '';
   S.init(view);
+  DK.Rooms.apply(set.room);
   S.onFrame = () => {
     if (st.playing) UI.positionLabels((i) => S.seatScreen(i));
-    const d = Math.round(S.getAzDeg()) % 360;
-    if (!sliding) slider.value = d;
-    $('azLabel').textContent = d + '°';
   };
   UI.buildLogo();
   showDemo();

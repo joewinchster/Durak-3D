@@ -308,6 +308,9 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
   #videos { top: clamp(52px, 13vw, 66px); }
 }
 
+#videos { touch-action: none; cursor: grab; pointer-events: auto !important; }
+#videos:empty { display: none !important; }
+
 </style>
 </head>
 <body>
@@ -326,6 +329,7 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
       <div class="spacer"></div>
       <button id="btnCam" class="icon hidden" title="Kamera und Mikrofon ein/aus">📹</button>
       <button id="btnMic" class="icon hidden" title="Mikrofon stumm">🎤</button>
+      <button id="btnZoom" class="icon" title="Tisch heranholen">🔍</button>
       <button id="btnMirror" class="icon" title="Ansicht spiegeln (Mirror Display)">⇋</button>
       <button id="btnReveal" class="icon" title="Alle aufdecken / verdeckt halten (Test)">👁</button>
       <button id="btnFull" class="icon" title="Vollbild">⛶</button>
@@ -391,6 +395,8 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
       <div class="opt"><span>🎙 Eigener Lacher <small id="recInfo">mit dem Mikrofon aufnehmen</small></span>
         <button id="btnRec" class="ghost">● Aufnehmen</button><button id="btnRecPlay" class="ghost">▶</button><button id="btnRecDel" class="ghost">✕</button></div>
       <div class="opt"><span>🎥 Kamera schwenkt zum Spieler</span><button class="tog" data-set="autoCam"></button></div>
+      <div class="opt"><span>🃏 Handkarten sortieren</span>
+        <div class="seg" data-set="sort"><button data-val="rank">Nach Wert</button><button data-val="suit">Nach Farbe</button></div></div>
       <div class="opt"><span>📱 Übergabe-Bildschirm <small>„Gerät weitergeben“ vor jedem Zug</small></span><button class="tog" data-set="handover"></button></div>
       <div class="opt"><span>Sichtschutz <small>Handkarten aufdecken</small></span>
         <div class="seg" data-set="peek"><button data-val="tap">Antippen</button><button data-val="hold">Halten</button><button data-val="auto">Offen</button></div>
@@ -416,6 +422,8 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
           <div class="opt"><span>↪ Weitergeben erlaubt</span><button class="tog" data-set="transfer"></button></div>
           <div class="opt"><span>Erster Angriff max. 5 Karten</span><button class="tog" data-set="first5"></button></div>
           <div class="opt"><span>↻ Im Uhrzeigersinn spielen</span><button class="tog" data-set="clockwise"></button></div>
+          <div class="opt"><span>🤖 Computer</span>
+            <div class="seg" data-set="cpuLevel"><button data-val="leicht">Leicht</button><button data-val="normal">Normal</button><button data-val="schwer">Schwer</button></div></div>
         </div>
       </div>
       <div class="btnRow">
@@ -477,6 +485,8 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
             <div class="opt"><span>↪ Weitergeben</span><button class="tog" data-set="transfer"></button></div>
             <div class="opt"><span>Erster Angriff max. 5</span><button class="tog" data-set="first5"></button></div>
             <div class="opt"><span>↻ Im Uhrzeigersinn</span><button class="tog" data-set="clockwise"></button></div>
+            <div class="opt"><span>🤖 Computer</span>
+              <div class="seg" data-set="cpuLevel"><button data-val="leicht">Leicht</button><button data-val="normal">Normal</button><button data-val="schwer">Schwer</button></div></div>
           </div>
           <div id="lobbyGuest" class="hidden"><p id="lobbyRules" class="small"></p><p>Warte, bis der Gastgeber das Spiel startet …</p></div>
         </div>
@@ -640,7 +650,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     music: true, musicVol: 60, musicTrack: 0, sfx: true, sfxVol: 80, laughs: true,
     players: 4, names: ['Spieler 1', 'Spieler 2', 'Spieler 3', 'Spieler 4'], cpu: [false, false, false, false],
     myName: '', peek: 'tap', handover: true, autoCam: true,
-    transfer: true, first5: true, deck: 36, clockwise: false
+    transfer: true, first5: true, deck: 36, clockwise: false, cpuLevel: 'normal', sort: 'rank'
   };
   function load(key) { try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { return {}; } }
   function save(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* privat/gesperrt */ } }
@@ -766,11 +776,20 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     }
 
     /* ---------- Aktionen (geben null bei ungültigem Zug zurück) ---------- */
-    attack(cardId) {
-      const p = this.actor, card = this._inHand(p, cardId);
-      if (!card || !this.canAttackWith(card)) return null;
-      this._remove(p, card);
-      this.field.push({ attack: card, defense: null });
+    attack(cardId) { return this.attackMulti([cardId]); }
+    /* Mehrere Karten mit gleichem Wert auf einmal legen (Angriff oder Nachlegen) */
+    canAttackMulti(cards) {
+      if (!cards.length || !this.canAttackWith(cards[0])) return false;
+      if (cards.some((c) => c.rank !== cards[0].rank)) return false;
+      if (this.field.length + cards.length > this.maxField()) return false;
+      return this.undefended().length + cards.length <= this.players[this.defender].hand.length;
+    }
+    attackMulti(ids) {
+      const p = this.actor;
+      if (!Array.isArray(ids) || !ids.length || new Set(ids).size !== ids.length) return null;
+      const cards = ids.map((id) => this._inHand(p, id));
+      if (cards.some((c) => !c) || !this.canAttackMulti(cards)) return null;
+      cards.forEach((card) => { this._remove(p, card); this.field.push({ attack: card, defense: null }); });
       if (this.taking) {
         if (!this.playerCanAdd(p)) { this.passes.add(p); return this._nextThrower(); }
         return { ok: true };
@@ -868,48 +887,77 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
 
 </script>
   <script>
-/* Durak 3D – einfacher Computer-Gegner
- * Spielt billige Karten zuerst, spart Trümpfe, gibt weiter wenn möglich und nimmt,
- * wenn er nicht schlagen kann (oder früh im Spiel einen hohen Trumpf opfern müsste).
+/* Durak 3D – Computer-Gegner in drei Stufen
+ *   leicht  – spielt oft irgendeine erlaubte Karte und nimmt schnell
+ *   normal  – billige Karten zuerst, spart Trümpfe, gibt weiter, nimmt wenn nötig
+ *   schwer  – legt Paare/Drillinge zusammen, legt gezielt nach, wenn der Verteidiger knapp ist,
+ *             und opfert Trümpfe nur, wenn es sich lohnt
  */
 (function (root) {
   'use strict';
-  function choose(g) {
+  function choose(g, level) {
+    level = level || 'normal';
+    const easy = level === 'leicht', hard = level === 'schwer';
     const p = g.actor, late = g.deck.length === 0;
     const val = (c) => c.rank + (c.suit === g.trumpSuit ? 13 : 0);
     const hand = g.players[p].hand.slice().sort((a, b) => val(a) - val(b));
+    const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
     if (g.mode === 'defend') {
+      if (easy && Math.random() < 0.1) return { type: 'take' };
       const tr = hand.find((c) => g.canTransferWith(c) && (c.suit !== g.trumpSuit || late));
-      if (tr) return { type: 'transfer', id: tr.id };
+      if (tr && !(easy && Math.random() < 0.5)) return { type: 'transfer', id: tr.id };
       const used = new Set(), plan = [];
       for (let i = 0; i < g.field.length; i++) {
         if (g.field[i].defense) continue;
-        const c = hand.find((h) => !used.has(h.id) && g.beats(g.field[i].attack, h));
-        if (!c) return { type: 'take' };
+        const fits = hand.filter((h) => !used.has(h.id) && g.beats(g.field[i].attack, h));
+        if (!fits.length) return { type: 'take' };
+        let c = easy && Math.random() < 0.4 ? pick(fits) : fits[0];
+        if (hard) {            // lieber einen Wert legen, der schon auf dem Tisch liegt (gibt den Angreifern nichts Neues)
+          const onTable = (r) => g.field.some((f) => f.attack.rank === r || (f.defense && f.defense.rank === r)) || plan.some((q) => q.card.rank === r);
+          const score = (h) => val(h) - (onTable(h.rank) ? 3 : 0);
+          c = fits.slice().sort((a, b) => score(a) - score(b))[0];
+        }
         used.add(c.id); plan.push({ idx: i, card: c });
       }
       if (!plan.length) return { type: 'take' };
       const first = plan[0];
       const pricey = val(first.card) >= 25 && g.field[first.idx].attack.suit !== g.trumpSuit;
-      if (!late && pricey && g.field.length === 1 && Math.random() < 0.5) return { type: 'take' };
+      if (!late && pricey && g.field.length === 1) {
+        if (hard ? g.deck.length > 8 : Math.random() < 0.5) return { type: 'take' };
+      }
       return { type: 'defend', id: first.card.id, idx: first.idx };
     }
 
     const can = hand.filter((c) => g.canAttackWith(c));
-    if (g.mode === 'attack') return { type: 'attack', id: can[0].id };
-    const limit = late ? 99 : g.taking ? 17 : 13;     // früh keine Trümpfe/hohen Karten nachlegen
+    const group = (card) => {                 // alle gleichen Werte (ohne Trumpf), die zusammen gelegt werden dürfen
+      if (!hard || (card.rank > 10 && !late)) return [card.id];
+      let cards = [card].concat(can.filter((c) => c !== card && c.rank === card.rank && (c.suit !== g.trumpSuit || late)));
+      while (cards.length > 1 && !g.canAttackMulti(cards)) cards.pop();
+      return cards.map((c) => c.id);
+    };
+    if (g.mode === 'attack') {
+      let c = easy && Math.random() < 0.4 ? pick(can) : can[0];
+      if (hard) {              // niedrigen Wert bevorzugen, von dem noch mehr auf der Hand sind
+        const cnt = (r) => hand.filter((h) => h.rank === r).length;
+        c = can.slice().sort((a, b) => (val(a) - (cnt(a.rank) > 1 ? 2 : 0)) - (val(b) - (cnt(b.rank) > 1 ? 2 : 0)))[0];
+      }
+      return { type: 'attack', id: c.id, ids: group(c) };
+    }
+    if (easy && Math.random() < 0.3) return { type: 'pass' };
+    const squeeze = hard && g.players[g.defender].hand.length <= 2;        // Verteidiger fast fertig: Druck machen
+    const limit = late ? 99 : g.taking ? 17 : squeeze ? 19 : (hard ? 18 : 13);           // früh keine Trümpfe/hohen Karten nachlegen
     const c = can.find((h) => val(h) <= limit);
-    return c ? { type: 'attack', id: c.id } : { type: 'pass' };
+    return c ? { type: 'attack', id: c.id, ids: group(c) } : { type: 'pass' };
   }
   function apply(g, m) {
-    if (m.type === 'attack') return g.attack(m.id);
+    if (m.type === 'attack') return g.attackMulti(Array.isArray(m.ids) && m.ids.length ? m.ids : [m.id]);
     if (m.type === 'defend') return g.defend(m.id, m.idx);
     if (m.type === 'transfer') return g.transfer(m.id);
     if (m.type === 'take') return g.take();
     return g.pass();
   }
-  const AI = { choose, apply };
+  const AI = { choose, apply, LEVELS: ['leicht', 'normal', 'schwer'] };
   if (typeof module !== 'undefined' && module.exports) module.exports = AI;
   if (root) { root.DK = root.DK || {}; root.DK.AI = AI; }
 })(typeof window !== 'undefined' ? window : null);
@@ -1603,7 +1651,8 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   const HAND_DIST = 6.5;                     // Abstand des Handfächers von der Sitz-Kamera
 
   let renderer, scene, camera, ghost, raycaster, faceGeo, edgeGeo, backMat, edgeMat;
-  let zoom = 1, last = 0;
+  let zoom = 1, last = 0, lensZoom = 1;
+  const FIELD_SCALE = 1.25;                  // Karten auf dem Tisch größer, damit man sie am Handy erkennt
   const cards = new Map();
   const cam = { az: 0, target: 0 };
   let seats = [];                            // Sitzwinkel (rad)
@@ -1722,7 +1771,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     const w = window.innerWidth, h = window.innerHeight;
     renderer.setSize(w, h, false);
     camera.aspect = ghost.aspect = w / h;
-    zoom = Math.max(1, 1.7 / camera.aspect);
+    zoom = Math.max(1, (camera.aspect < 1 ? 1.15 : 1.7) / camera.aspect);   // Hochformat: Tisch größer, Ränder dürfen abgeschnitten sein
     camera.updateProjectionMatrix(); ghost.updateProjectionMatrix();
     if (view) layout(view);
   }
@@ -1738,6 +1787,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     const dt = Math.min(0.05, (t - last) / 1000 || 0.016); last = t;
     if (api.idleSpin) cam.target += dt * 0.1;
     cam.az += (cam.target - cam.az) * (1 - Math.exp(-dt * 3.4));
+    if (Math.abs(camera.zoom - lensZoom) > 0.002) { camera.zoom += (lensZoom - camera.zoom) * (1 - Math.exp(-dt * 9)); camera.updateProjectionMatrix(); }
     place(camera, cam.az);
     cards.forEach((c) => c.update(dt));
     renderer.render(scene, camera);
@@ -1759,8 +1809,10 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   }
   function sortHand(hand, trump) {
     const order = { hearts: 0, spades: 1, diamonds: 2, clubs: 3 };
+    const byRank = DK.settings.sort !== 'suit';     // nach Wert: gleiche Werte liegen nebeneinander (7,7,7,8,8 …)
     return hand.slice().sort((a, b) => {
       const ta = a.suit === trump ? 1 : 0, tb = b.suit === trump ? 1 : 0;
+      if (byRank) return a.rank - b.rank || ta - tb || order[a.suit] - order[b.suit];
       return ta - tb || order[a.suit] - order[b.suit] || a.rank - b.rank;
     });
   }
@@ -1796,17 +1848,17 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     fieldWorld = [];
     g.field.forEach((f, i) => {
       let lx, lz;
-      if (n <= 3) { lx = (i - (n - 1) / 2) * 1.75; lz = 0; }
-      else if (i < 3) { lx = (i - 1) * 1.75; lz = -0.95; }
-      else { lx = (i - 3 - (n - 4) / 2) * 1.75; lz = 0.95; }
+      if (n <= 3) { lx = (i - (n - 1) / 2) * 2.15; lz = 0; }
+      else if (i < 3) { lx = (i - 1) * 2.15; lz = -1.15; }
+      else { lx = (i - 3 - (n - 4) / 2) * 2.15; lz = 1.15; }
       const base = right.clone().multiplyScalar(lx).add(toward.clone().multiplyScalar(lz));
       fieldWorld.push(base.clone());
       const h = hash(f.attack.id), jit = ((h % 11) - 5) * 0.012;
-      const pa = base.clone().add(right.clone().multiplyScalar(-0.2)).add(toward.clone().multiplyScalar(-0.1)); pa.y = T / 2 + 0.001 * i;
-      o_set(f.attack.id, pa, flatQuat(yaw + jit, true), {});
+      const pa = base.clone().add(right.clone().multiplyScalar(-0.24)).add(toward.clone().multiplyScalar(-0.12)); pa.y = T / 2 + 0.001 * i;
+      o_set(f.attack.id, pa, flatQuat(yaw + jit, true), { scale: FIELD_SCALE });
       if (f.defense) {
-        const pd = base.clone().add(right.clone().multiplyScalar(0.27)).add(toward.clone().multiplyScalar(0.16)); pd.y = T * 1.6 + 0.001 * i;
-        o_set(f.defense.id, pd, flatQuat(yaw - 0.22 + jit, true), {});
+        const pd = base.clone().add(right.clone().multiplyScalar(0.33)).add(toward.clone().multiplyScalar(0.2)); pd.y = T * 1.6 + 0.001 * i;
+        o_set(f.defense.id, pd, flatQuat(yaw - 0.22 + jit, true), { scale: FIELD_SCALE });
       }
     });
 
@@ -1843,7 +1895,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     const flip = new Q().setFromAxisAngle(Y_AXIS, Math.PI);
     hand.forEach((c, i) => {
       if (c.id === v.dragging) return;
-      const t = i - (m - 1) / 2, lx = t * s, sel = c.id === v.selected;
+      const t = i - (m - 1) / 2, lx = t * s, sel = c.id === v.selected || (!!v.multi && v.multi.has(c.id));
       const can = v.playable ? v.playable.has(c.id) : true;
       const local = new V3(lx, -halfH + 1.12 * fs + lift - 0.022 * lx * lx + (sel ? 0.42 : 0) + (open && v.playable && can && !sel ? 0.1 : 0), -HAND_DIST + i * 0.012);
       const pos = local.applyQuaternion(cq).add(cp);
@@ -1884,6 +1936,8 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     swingTo(i) { cam.target = nearest(seats[i]); },
     setAzDeg(d) { cam.target = nearest(d * DEG); },
     rotateBy(rad, instant) { cam.target += rad; if (instant) cam.az += rad; },
+    setZoom(z) { lensZoom = Math.max(1, Math.min(3, z)); },
+    getZoom() { return lensZoom; },
     getAzDeg() { return (((cam.target / DEG) % 360) + 360) % 360; }
   });
 })();
@@ -2229,7 +2283,8 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     game: null, playing: false, actor: -1, turnOf: -1, lastHuman: -1, revealed: false, hold: false, selected: null, dragging: null,
     busy: true, revealAll: false, trumpShown: true, showCard: null, fieldYaw: 0, epoch: 0, stagger: null,
     over: false, winner: null, names: [], kind: [], auto: [], away: [], solo: false, backTo: 'title', ready: null,
-    net: null, me: -1, awaitSeat: -1, seq: 0, acts: 0, pending: false, waitActs: -1, cfg: null, gid: ''
+    net: null, me: -1, awaitSeat: -1, seq: 0, acts: 0, pending: false, waitActs: -1, cfg: null, gid: '',
+    multi: new Set()      // weitere gewählte Karten mit gleichem Wert (mehrere auf einmal legen)
   };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const isHost = () => !!st.net && st.net.role === 'host';
@@ -2272,8 +2327,9 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   }
   function render() {
     const g = st.game; if (!g) return;
+    if (!st.selected) st.multi.clear();
     S.layout({
-      game: g, actor: st.actor, revealed: isRevealed(), revealAll: st.revealAll || st.over, selected: st.selected,
+      game: g, actor: st.actor, revealed: isRevealed(), revealAll: st.revealAll || st.over, selected: st.selected, multi: st.multi,
       dragging: st.dragging, playable: isRevealed() ? playableSet() : null, trumpShown: st.trumpShown,
       showCard: st.showCard, fieldYaw: st.fieldYaw, stagger: st.stagger
     });
@@ -2332,7 +2388,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       if (turn) {
         const du = st.net ? 'Du bist dran: ' : '';
         if (!isRevealed()) hint = set.peek === 'hold' ? '👆 ' + me + ': Karten gedrückt halten zum Ansehen' : '👆 ' + me + ': Karten antippen zum Aufdecken';
-        else if (mode === 'attack') hint = du + 'Karte wählen und in die Mitte ziehen';
+        else if (mode === 'attack') hint = du + 'Karte wählen und in die Mitte ziehen – gleiche Werte gehen zusammen';
         else if (mode === 'defend') hint = du + 'Schlagen, weitergeben oder nehmen';
         else hint = du + (g.taking ? 'Passende Karten nachlegen oder „Fertig“' : 'Nachlegen oder „Fertig (Bito)“');
       }
@@ -2438,7 +2494,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       if (viewer >= 0) st.lastHuman = viewer;
       renderAll();
       await sleep(swung ? 1100 : 800); if (ep !== st.epoch) return;
-      const m = DK.AI.choose(g), ev = DK.AI.apply(g, m);
+      const m = DK.AI.choose(g, set.cpuLevel), ev = DK.AI.apply(g, m);
       P.sfx(m.type === 'take' || m.type === 'pass' ? 'click' : 'place');
       return afterAction(ev);
     }
@@ -2463,6 +2519,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       await sleep(swung && set.autoCam ? 950 : 300); if (ep !== st.epoch) return;
     }
     if (st.net) { A.play('turn'); buzz(); }
+    setZoom(1);
     if (set.peek === 'auto') st.revealed = true;
     if (st.revealed && !st.solo) A.play('flip');
     st.busy = false; renderAll();
@@ -2620,7 +2677,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     st.actor = g.phase === 'play' && !v.over && !g.players[st.me].out ? st.me : -1;
     if (st.pending && v.acts > st.waitActs) st.pending = false;
     const go = v.wait === st.me && !st.pending;
-    if (go && !st.wasGo) { A.play('turn'); buzz(); }
+    if (go && !st.wasGo) { A.play('turn'); buzz(); setZoom(1); }
     st.wasGo = go;
     if (!go) { st.selected = null; st.dragging = null; }
     st.busy = !go;
@@ -2641,7 +2698,10 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   /* ---------- Züge ---------- */
   function legal(g, m) {
     const card = m.id ? g.players[g.actor].hand.find((c) => c.id === m.id) : null;
-    if (m.type === 'attack') return !!card && g.canAttackWith(card);
+    if (m.type === 'attack') {
+      const hand = g.players[g.actor].hand, cards = (Array.isArray(m.ids) && m.ids.length ? m.ids : [m.id]).map((id) => hand.find((c) => c.id === id));
+      return cards.every(Boolean) && new Set(cards).size === cards.length && g.canAttackMulti(cards);
+    }
     if (m.type === 'defend') return !!card && g.canDefendAt(card, m.idx);
     if (m.type === 'transfer') return !!card && g.canTransferWith(card);
     if (m.type === 'take') return g.mode === 'defend';
@@ -2652,11 +2712,12 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     const g = st.game;
     if (isClient()) {
       if (!legal(g, move)) { A.play('error'); UI.toast('Dieser Zug ist nicht erlaubt'); render(); return false; }
-      const hand = g.players[st.me].hand, card = hand.find((c) => c.id === move.id);
-      if (card) {                              // Karte sofort hinlegen, der Gastgeber bestätigt gleich
+      const hand = g.players[st.me].hand;
+      (move.type === 'attack' && move.ids ? move.ids : [move.id]).forEach((id) => {     // Karten sofort hinlegen, der Gastgeber bestätigt gleich
+        const card = hand.find((c) => c.id === id); if (!card) return;
         hand.splice(hand.indexOf(card), 1);
         if (move.type === 'defend') g.field[move.idx].defense = card; else g.field.push({ attack: card, defense: null });
-      }
+      });
       st.pending = true; st.waitActs = st.acts; st.busy = true; st.wasGo = false; st.selected = null; st.dragging = null;
       st.net.send({ t: 'act', move });
       if (sfx) A.play(sfx);
@@ -2689,7 +2750,12 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     if (!g.canAttackWith(card)) {
       A.play('error'); UI.toast(g.field.length ? 'Nur Karten mit einem Wert, der schon liegt' : 'Jetzt nicht möglich'); return false;
     }
-    return submit({ type: 'attack', id: card.id }, 'place');
+    // alle mitgewählten Karten mit gleichem Wert gehen zusammen auf den Tisch
+    const hand = g.players[st.actor].hand, ids = [card.id];
+    if (st.selected === card.id || st.multi.has(card.id)) [st.selected].concat(Array.from(st.multi)).forEach((id) => { if (id && ids.indexOf(id) < 0) ids.push(id); });
+    const cards = ids.map((id) => hand.find((c) => c.id === id)).filter((c) => c && c.rank === card.rank);
+    if (cards.length > 1 && !g.canAttackMulti(cards)) { A.play('error'); UI.toast('So viele Karten passen gerade nicht auf den Tisch'); return false; }
+    return submit({ type: 'attack', id: card.id, ids: cards.map((c) => c.id) }, 'place');
   }
 
   /* ---------- Touch / Maus ---------- */
@@ -2715,11 +2781,15 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     }
   });
   view.addEventListener('pointermove', (e) => {
-    if (!ptr || e.pointerId !== ptr.id) return;
+    if (!ptr || e.pointerId !== ptr.id || pinch) return;
     if (!ptr.moved && Math.hypot(e.clientX - ptr.x0, e.clientY - ptr.y0) > 12) ptr.moved = true;
     if (ptr.card) {
       if (ptr.moved && isRevealed() && myTurn()) {
-        if (!ptr.drag) { ptr.drag = true; st.dragging = ptr.card.id; st.selected = ptr.card.id; render(); }
+        if (!ptr.drag) {
+          ptr.drag = true; st.dragging = ptr.card.id;
+          if (st.selected !== ptr.card.id && !st.multi.has(ptr.card.id)) { st.selected = ptr.card.id; st.multi.clear(); }
+          render();
+        }
         S.dragTo(ptr.card.id, ndcOf(e));
       }
     } else if (ptr.moved) {           // stufenloses Wischen dreht die Kamera
@@ -2743,12 +2813,23 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     }
     if (set.peek === 'hold' && !st.revealAll && !st.solo) { if (wasHold) render(); return; }   // Loslassen klappt die Karten wieder zu
     if (!p.wasRevealed) { st.revealed = true; A.play('flip'); render(); return; }
-    if (st.selected === p.card.id) { if (!playCard(p.card, null)) render(); }
-    else { st.selected = p.card.id; A.play('click'); render(); }
+    const selCard = selectedCard();
+    if (st.selected === p.card.id || st.multi.has(p.card.id)) { if (!playCard(p.card, null)) render(); }
+    else if (selCard && st.game.mode !== 'defend' && selCard.rank === p.card.rank) { st.multi.add(p.card.id); A.play('click'); render(); }   // gleichen Wert dazuwählen
+    else { st.selected = p.card.id; st.multi.clear(); A.play('click'); render(); }
   }
   view.addEventListener('pointerup', (e) => endPointer(e, false));
   view.addEventListener('pointercancel', (e) => endPointer(e, true));
   view.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  /* ---------- Zoom auf den Tisch: 🔍, Mausrad oder zwei Finger ---------- */
+  function setZoom(z) { S.setZoom(z); $('btnZoom').classList.toggle('on', S.getZoom() > 1.05); }
+  view.addEventListener('wheel', (e) => { e.preventDefault(); setZoom(S.getZoom() * (e.deltaY < 0 ? 1.12 : 0.89)); }, { passive: false });
+  let pinch = 0;
+  const spread = (e) => Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  view.addEventListener('touchstart', (e) => { if (e.touches.length === 2) { pinch = spread(e) / S.getZoom(); ptr = null; st.dragging = null; } }, { passive: true });
+  view.addEventListener('touchmove', (e) => { if (e.touches.length === 2 && pinch) setZoom(spread(e) / pinch); }, { passive: true });
+  view.addEventListener('touchend', (e) => { if (e.touches.length < 2) pinch = 0; }, { passive: true });
 
   /* ---------- Buttons ---------- */
   const on = (id, fn) => $(id).addEventListener('click', () => { A.init(); fn(); });
@@ -2777,6 +2858,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   on('btnFullTitle', UI.fullscreen);
   on('btnMirror', () => { S.mirrored = !S.mirrored; $('stage').classList.toggle('mirror', S.mirrored); $('btnMirror').classList.toggle('on', S.mirrored); });
   on('btnReveal', () => { if (st.net) return; st.revealAll = !st.revealAll; $('btnReveal').classList.toggle('on', st.revealAll); A.play('flip'); render(); });
+  on('btnZoom', () => setZoom(S.getZoom() > 1.05 ? 1 : 2));
   on('btnRotL', () => S.rotateBy(-15 * DEG));
   on('btnRotR', () => S.rotateBy(15 * DEG));
   on('btnPlay', () => { const c = selectedCard(); if (c && myTurn()) playCard(c, null); });
@@ -2795,6 +2877,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     A.init(); A.applyVolumes();
     if (k === 'sfxVol' || k === 'sfx') A.play('place');
     if (k === 'laughs' && set.laughs) A.laugh(1);
+    if (k === 'sort') render();
     if (k === 'peek' && st.playing && !st.busy) { st.revealed = set.peek === 'auto' && myTurn(); render(); }
     if (DK.Online) DK.Online.settingChanged(k);
   });
@@ -2864,7 +2947,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
     const n = document.createElement('span'); n.textContent = label;
     box.appendChild(v); box.appendChild(n);
-    box.addEventListener('click', () => box.classList.toggle('big'));
+    box.addEventListener('click', () => { if (!dragged) box.classList.toggle('big'); });
     $('videos').appendChild(box);
     return { box, v };
   }
@@ -2951,6 +3034,25 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     buttons();
   }
 
+  /* Fenster mit dem Finger an eine freie Stelle schieben (kurzes Antippen vergrößert weiterhin) */
+  const wrap = $('videos');
+  let drag = null, dragged = false;
+  wrap.addEventListener('pointerdown', (e) => {
+    const r = wrap.getBoundingClientRect();
+    drag = { id: e.pointerId, dx: e.clientX - r.left, dy: e.clientY - r.top, x0: e.clientX, y0: e.clientY }; dragged = false;
+    try { wrap.setPointerCapture(e.pointerId); } catch (x) { /* egal */ }
+  });
+  wrap.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!dragged && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 10) return;
+    dragged = true;
+    const r = wrap.getBoundingClientRect();
+    wrap.style.left = Math.max(0, Math.min(window.innerWidth - r.width, e.clientX - drag.dx)) + 'px';
+    wrap.style.top = Math.max(0, Math.min(window.innerHeight - r.height, e.clientY - drag.dy)) + 'px';
+  });
+  const drop = (e) => { if (drag && e.pointerId === drag.id) { drag = null; setTimeout(() => { dragged = false; }, 50); } };
+  wrap.addEventListener('pointerup', drop); wrap.addEventListener('pointercancel', drop);
+
   $('btnCam').addEventListener('click', () => { if (stream) stop(); else start(); });
   $('btnMic').addEventListener('click', () => {
     if (!stream) return;
@@ -2973,7 +3075,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   'use strict';
   const DK = window.DK, UI = DK.UI, A = DK.Audio, G = DK.Game, Net = DK.Net, set = DK.settings, $ = UI.$, st = G.state;
   const PROTO = 1, ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const RULE_KEYS = ['deck', 'transfer', 'first5', 'clockwise'];
+  const RULE_KEYS = ['deck', 'transfer', 'first5', 'clockwise', 'cpuLevel'];
   let room = null;        // Gastgeber: { code, conn, running, players: [{kind, name, pid, link, online}] }
   let cl = null;          // Mitspieler: { code, conn, want, joined, tries }
   let opening = null;     // Verbindung, die gerade aufgebaut wird (zum Abbrechen)

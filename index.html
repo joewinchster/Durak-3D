@@ -356,6 +356,9 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
 .bubble.big { font-size: clamp(26px, 5vw, 38px); padding: .15em .45em; }
 .bubble.big b { font-size: 13px; display: block; }
 
+.crow .ghost.own { border-color: var(--gold); color: #fff; position: relative; padding-right: 1.9em; }
+.crow .ghost.own .del { position: absolute; right: .45em; top: 50%; transform: translateY(-50%); font-size: .8em; opacity: .7; }
+
 </style>
 </head>
 <body>
@@ -396,6 +399,7 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
       <div id="chatEmoji" class="crow"></div>
       <div id="chatPhrases" class="crow"></div>
       <div class="crow"><input id="chatText" class="txt" type="text" maxlength="60" placeholder="Nachricht …" autocomplete="off" spellcheck="false" enterkeyhint="send">
+        <button id="btnChatKeep" class="ghost" title="Als eigenen Spruch speichern">⭐</button>
         <button id="btnChatSend" class="big small">Senden</button></div>
     </div>
   </div>
@@ -835,9 +839,10 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     /* ---------- Aktionen (geben null bei ungültigem Zug zurück) ---------- */
     attack(cardId) { return this.attackMulti([cardId]); }
     /* Mehrere Karten mit gleichem Wert auf einmal legen (Angriff oder Nachlegen) */
+    /* Erster Angriff: nur gleiche Werte. Nachlegen: jede Karte, deren Wert schon auf dem Tisch liegt. */
     canAttackMulti(cards) {
-      if (!cards.length || !this.canAttackWith(cards[0])) return false;
-      if (cards.some((c) => c.rank !== cards[0].rank)) return false;
+      if (!cards.length || !cards.every((c) => this.canAttackWith(c))) return false;
+      if (this.field.length === 0 && cards.some((c) => c.rank !== cards[0].rank)) return false;
       if (this.field.length + cards.length > this.maxField()) return false;
       return this.undefended().length + cards.length <= this.players[this.defender].hand.length;
     }
@@ -891,12 +896,16 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     /* ---------- intern ---------- */
     _inHand(p, id) { return p >= 0 ? this.players[p].hand.find((c) => c.id === id) : null; }
     _remove(p, card) { const h = this.players[p].hand; h.splice(h.indexOf(card), 1); }
+    /* Reihenfolge beim Nachlegen: Wer die Runde begonnen hat, ist immer zuerst dran (auch nach dem
+       Weitergeben). Die anderen dürfen erst, wenn er „Fertig“ gesagt hat oder nichts Passendes mehr hat. */
     _throwOrder() {
       const order = [], n = this.players.length;
       for (let k = 0; k < n; k++) {
         const j = (((this.attacker + k * this.opts.dir) % n) + n) % n;
         if (j !== this.defender && !this.players[j].out) order.push(j);
       }
+      const i = order.indexOf(this.lead);
+      if (i > 0) { order.splice(i, 1); order.unshift(this.lead); }
       return order;
     }
     _nextThrower() {
@@ -906,6 +915,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       return this._endRound(this.taking);
     }
     _startRound(a) {
+      this.lead = a;
       this.attacker = a; this.defender = this.nextActive(a);
       this.field = []; this.taking = false; this.passes.clear();
       this.actor = a; this.mode = 'attack';
@@ -2778,7 +2788,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
         if (!isRevealed()) hint = set.peek === 'hold' ? '👆 ' + me + ': Karten gedrückt halten zum Ansehen' : '👆 ' + me + ': Karten antippen zum Aufdecken';
         else if (mode === 'attack') hint = du + 'Karte wählen und in die Mitte ziehen – gleiche Werte gehen zusammen';
         else if (mode === 'defend') hint = du + (sel ? 'Nochmal antippen – oder die Tischkarte antippen, die du schlagen willst' : 'Schlagen, weitergeben oder nehmen');
-        else hint = du + (g.taking ? 'Passende Karten nachlegen oder „Fertig“' : 'Nachlegen oder „Fertig (Bito)“');
+        else hint = du + (g.taking ? 'Passende Karten nachlegen oder „Fertig“' : 'Nachlegen oder „Fertig (Bito)“') + ' – mehrere antippen legt sie zusammen';
       }
     }
     $('status').textContent = status; $('hint').textContent = hint;
@@ -3148,7 +3158,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     // alle mitgewählten Karten mit gleichem Wert gehen zusammen auf den Tisch
     const hand = g.players[st.actor].hand, ids = [card.id];
     if (st.selected === card.id || st.multi.has(card.id)) [st.selected].concat(Array.from(st.multi)).forEach((id) => { if (id && ids.indexOf(id) < 0) ids.push(id); });
-    const cards = ids.map((id) => hand.find((c) => c.id === id)).filter((c) => c && c.rank === card.rank);
+    const cards = ids.map((id) => hand.find((c) => c.id === id)).filter((c) => c && (g.field.length ? g.canAttackWith(c) : c.rank === card.rank));
     if (cards.length > 1 && !g.canAttackMulti(cards)) { A.play('error'); UI.toast('So viele Karten passen gerade nicht auf den Tisch'); return false; }
     return submit({ type: 'attack', id: card.id, ids: cards.map((c) => c.id) }, 'place');
   }
@@ -3220,7 +3230,9 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     if (!p.wasRevealed) { st.revealed = true; A.play('flip'); render(); return; }
     const selCard = selectedCard();
     if (st.selected === p.card.id || st.multi.has(p.card.id)) { if (!playCard(p.card, null)) render(); }
-    else if (selCard && st.game.mode !== 'defend' && selCard.rank === p.card.rank) { st.multi.add(p.card.id); A.play('click'); render(); }   // gleichen Wert dazuwählen
+    else if (selCard && st.game.mode !== 'defend' && (st.game.field.length ? st.game.canAttackWith(p.card) && st.game.canAttackWith(selCard) : selCard.rank === p.card.rank)) {
+      st.multi.add(p.card.id); A.play('click'); render();     // weitere Karte dazuwählen: beim Angriff gleicher Wert, beim Nachlegen jeder Wert vom Tisch
+    }
     else { st.selected = p.card.id; st.multi.clear(); A.play('click'); render(); }
   }
   view.addEventListener('pointerup', (e) => endPointer(e, false));
@@ -3486,7 +3498,28 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   const bar = $('chatBar'), input = $('chatText');
   const row1 = $('chatEmoji'), row2 = $('chatPhrases');
   EMOJI.forEach((e) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'emo'; b.textContent = e; b.addEventListener('click', () => send(e)); row1.appendChild(b); });
-  PHRASES.forEach((p) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost'; b.textContent = p; b.addEventListener('click', () => send(p)); row2.appendChild(b); });
+  /* Eigene Sprüche: im Textfeld schreiben und ⭐ tippen – bis zu 8, im Gerät gespeichert, ✕ löscht */
+  const OWN_KEY = 'durak3d.phrases';
+  let own = [];
+  try { own = (JSON.parse(localStorage.getItem(OWN_KEY) || '[]') || []).filter((t) => typeof t === 'string').slice(0, 8); } catch (e) { own = []; }
+  function saveOwn() { try { localStorage.setItem(OWN_KEY, JSON.stringify(own)); } catch (e) { /* voll */ } renderPhrases(); }
+  function renderPhrases() {
+    row2.innerHTML = '';
+    PHRASES.forEach((p) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost'; b.textContent = p; b.addEventListener('click', () => send(p)); row2.appendChild(b); });
+    own.forEach((p, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost own'; b.textContent = p;
+      const x = document.createElement('span'); x.className = 'del'; x.textContent = '✕'; x.title = 'Spruch löschen';
+      x.addEventListener('click', (e) => { e.stopPropagation(); own.splice(i, 1); saveOwn(); });
+      b.appendChild(x); b.addEventListener('click', () => send(p)); row2.appendChild(b);
+    });
+  }
+  renderPhrases();
+  $('btnChatKeep').addEventListener('click', () => {
+    const t = clean(input.value);
+    if (!t) { UI.toast('Erst einen Spruch ins Feld schreiben'); return; }
+    if (own.indexOf(t) < 0 && PHRASES.indexOf(t) < 0) { own.unshift(t); own = own.slice(0, 8); saveOwn(); }
+    UI.toast('Spruch gespeichert');
+  });
 
   function open(on) {
     bar.classList.toggle('hidden', !on);

@@ -1,5 +1,5 @@
 /* Automatisch erzeugt von tools/build.py – Offline-Cache für Durak 3D */
-const CACHE = 'durak-79f9d1fcdc';
+const CACHE = 'durak-f0e55e1633';
 const FILES = [
   "./",
   "index.html",

@@ -384,6 +384,26 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
 #fxBar .ic { font-size: clamp(22px, 4.6vh, 30px); line-height: 1; }
 #fxBar small { font-size: 11px; }
 
+/* ---------- Profile, Arena, Fertig-Anzeige, fliegende Emojis ---------- */
+.profBtn { align-self: center; border-color: var(--gold); color: #fff; font-weight: 800; }
+.arenaBtn { border-color: #e46a6a; color: #ffd6d6; font-weight: 800; }
+.lrow.prof { flex-wrap: wrap; }
+.lrow.prof > div { flex: 1 1 10em; display: flex; flex-direction: column; gap: 1px; }
+.lrow.prof.act { border-color: var(--gold); background: rgba(242, 193, 78, .14); }
+.lrow.prof .pts { color: var(--gold); font-weight: 800; }
+.lrow.prof small { opacity: .7; font-weight: 400; font-size: .78em; }
+#avatarPick .emo { font-size: clamp(20px, 4vh, 28px); width: 1.7em; height: 1.6em; border-radius: 10px; background: rgba(255, 255, 255, .08); }
+#avatarPick .emo.on { background: linear-gradient(#f7d77a, #d9a233); }
+.arenaNote { margin: .3em 0 .8em; padding: .5em .8em; border-radius: 10px; background: rgba(228, 106, 106, .16); border: 1px solid #e46a6a; font-size: clamp(12px, 2.6vh, 15px); }
+.pointsLine { font-weight: 800; color: var(--gold2); margin: .2em 0 .6em; }
+.pointsLine:empty { display: none; }
+.plabel .tag { font-style: normal; font-size: .78em; margin-left: .45em; padding: .05em .45em; border-radius: 999px; font-weight: 700; }
+.plabel .tag.done { background: rgba(255, 255, 255, .15); color: #cfd8f5; }
+.plabel .tag.go { background: linear-gradient(#f7d77a, #d9a233); color: #2a1a00; }
+.plabel .tag.lead { background: rgba(53, 176, 122, .35); color: #c8ffe6; }
+.flyemo { position: absolute; font-size: 44px; line-height: 1; pointer-events: none; z-index: 8; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .5)); }
+#fxBar .blurBtn { min-width: 6.5em; }
+
 </style>
 </head>
 <body>
@@ -439,8 +459,10 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
     <div class="titleRight">
       <h1>DURAK</h1>
       <p class="sub">Das Kartenspiel in 3D · 36 Karten</p>
+      <button id="btnProfile" class="ghost profBtn">👤 Profil anlegen</button>
       <button id="btnStart" class="big">▶ Spiel starten</button>
       <button id="btnOnline" class="big alt">🌐 Online spielen</button>
+      <button id="btnArena" class="ghost arenaBtn">⚔️ Punkte-Arena</button>
       <button id="btnOptions" class="ghost">⚙ Optionen</button>
       <div class="btnRow tight">
         <button id="btnScores" class="ghost">🏆 Punktestand</button>
@@ -532,6 +554,38 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
     </div>
   </section>
 
+  <!-- Profile: ohne E-Mail, nur auf diesem Gerät -->
+  <section id="profiles" class="screen hidden">
+    <div class="panel">
+      <h2>👤 Profile</h2>
+      <p class="small">Ohne E-Mail: Profile und Punkte bleiben auf diesem Gerät gespeichert. Jedes Gerät hat seine eigenen Profile.</p>
+      <div id="profileList"></div>
+      <div id="profileNew">
+        <div class="opt"><span>Neues Profil</span>
+          <input id="profName" class="txt" type="text" maxlength="12" placeholder="Name" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done"></div>
+        <div id="avatarPick" class="crow"></div>
+        <div class="btnRow tight"><button id="btnProfCreate" class="big small">＋ Profil anlegen</button></div>
+      </div>
+      <div class="btnRow"><button id="btnProfBack" class="ghost">Zurück</button></div>
+    </div>
+  </section>
+
+  <!-- Punkte-Arena: mit Profilen um Punkte spielen -->
+  <section id="arena" class="screen hidden">
+    <div class="panel">
+      <h2>⚔️ Punkte-Arena</h2>
+      <p class="small">Spielt mit euren Profilen um Punkte – jeder auf seinem eigenen Gerät. Alle setzen denselben Einsatz: Der Durak verliert ihn, die anderen teilen ihn sich. Keine Computer-Gegner. Wer mitten im Spiel aufgibt, verliert den Einsatz.</p>
+      <div class="opt"><span>Du spielst als</span><b id="arenaWho"></b><button id="btnArenaProfile" class="ghost">Profil</button></div>
+      <div class="opt"><span>Einsatz</span>
+        <div class="seg" data-set="stake"><button data-val="50">50</button><button data-val="100">100</button><button data-val="250">250</button><button data-val="500">500</button></div></div>
+      <div class="opt"><span>Neue Arena öffnen</span><button id="btnArenaHost" class="big small">⚔️ Arena eröffnen</button></div>
+      <div class="opt"><span>Einer Arena beitreten</span>
+        <input id="arenaCode" class="txt code" type="text" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go">
+        <button id="btnArenaJoin" class="big small alt">Beitreten</button></div>
+      <div class="btnRow"><button id="btnArenaBack" class="ghost">Zurück</button></div>
+    </div>
+  </section>
+
   <!-- Online: Namen eingeben, Spiel eröffnen oder beitreten -->
   <section id="online" class="screen hidden">
     <div class="panel">
@@ -554,6 +608,7 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
       <div class="cols">
         <div>
           <h2>Raum <span id="lobbyCode" class="codeBig"></span></h2>
+          <p id="lobbyArena" class="arenaNote hidden"></p>
           <p id="lobbyUrl" class="small"></p>
           <button id="btnShare" class="ghost">🔗 Einladung teilen</button>
           <div id="lobbyHost">
@@ -611,6 +666,7 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
       <div class="suits">♠ <i>♥</i> ♣ <i>♦</i></div>
       <h2 id="overTitle">Spielende</h2>
       <p id="overText"></p>
+      <p id="overPoints" class="pointsLine"></p>
       <p id="overWait" class="hidden small">Der Gastgeber kann ein neues Spiel starten …</p>
       <div class="scoreBox"></div>
       <div class="btnRow">
@@ -729,7 +785,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     music: true, musicVol: 60, musicTrack: 0, sfx: true, sfxVol: 80, laughs: true,
     players: 4, names: ['Spieler 1', 'Spieler 2', 'Spieler 3', 'Spieler 4'], cpu: [false, false, false, false],
     myName: '', peek: 'tap', handover: true, autoCam: true,
-    transfer: true, first5: true, deck: 36, clockwise: false, cpuLevel: 'normal', sort: 'rank', room: 'terrasse', tableColor: 'auto', backColor: 'auto', videoFx: 'none'
+    transfer: true, first5: true, deck: 36, clockwise: false, cpuLevel: 'normal', sort: 'rank', room: 'terrasse', tableColor: 'auto', backColor: 'auto', videoFx: 'none', videoBlur: false, stake: 100
   };
   function load(key) { try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { return {}; } }
   function save(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* privat/gesperrt */ } }
@@ -2698,7 +2754,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   }
   const S = DK.Scene, UI = DK.UI, A = DK.Audio, set = DK.settings, $ = UI.$;
   const DEG = Math.PI / 180;
-  const SCREENS = ['title', 'options', 'setup', 'handover', 'scores', 'menu', 'gameover', 'online', 'lobby', 'install'];
+  const SCREENS = ['title', 'options', 'setup', 'handover', 'scores', 'menu', 'gameover', 'online', 'lobby', 'install', 'profiles', 'arena'];
   /* st.actor  = Spieler, dessen Handfächer auf diesem Gerät vor der Kamera gezeigt wird (-1 = keiner)
      st.turnOf = Spieler, der laut Regeln gerade handeln muss
      st.kind[i] = 'local' (Mensch an diesem Gerät) | 'cpu' | 'remote' (Mensch an einem anderen Gerät) */
@@ -2771,6 +2827,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       t: 'state', seq: ++st.seq,
       g: {
         phase: g.phase, mode: g.mode, actor: g.actor, attacker: g.attacker, defender: g.defender, taking: g.taking, roundNo: g.roundNo, loser: g.loser,
+        passes: Array.from(g.passes || []), lead: g.lead,
         hands: g.players.map((p) => ids(p.hand)), outs: g.players.map((p) => p.out), deck: ids(g.deck), discard: ids(g.discard),
         field: g.field.map((f) => [f.attack.id, f.defense ? f.defense.id : null])
       },
@@ -2783,7 +2840,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   }
   function startMsg(seat) {
     const g = st.game;
-    return { t: 'start', gid: st.gid, n: g.players.length, names: st.names, me: seat, trump: g.trumpSuit,
+    return { t: 'start', gid: st.gid, n: g.players.length, names: st.names, me: seat, trump: g.trumpSuit, arena: st.arena || 0,
       opts: { transfer: g.opts.transfer, first5: g.opts.first5, deckSize: g.opts.deckSize, dir: g.opts.dir } };
   }
 
@@ -2830,7 +2887,14 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     g.players.forEach((pl, i) => {
       const role = g.phase !== 'play' ? '' : i === g.defender ? '🛡 ' : i === g.attacker ? '⚔ ' : '';
       const nm = (st.away[i] && !isCpu(i) ? '⏳ ' : '') + UI.esc(pname(i));
-      const html = pl.out ? '✔ ' + nm + ' – fertig' : role + nm + '<b>' + pl.hand.length + '</b>';
+      // Nachlegen: wer schon „Fertig“ gesagt hat und wer gerade dran ist
+      let tag = '';
+      if (g.phase === 'play' && !pl.out && i !== g.defender && (g.mode === 'throw' || g.mode === 'defend') && g.passes) {
+        if (g.passes.has(i)) tag = '<i class="tag done">✋ fertig</i>';
+        else if (g.mode === 'throw' && i === g.actor) tag = '<i class="tag go">legt nach</i>';
+        else if (i === g.lead) tag = '<i class="tag lead">zuerst</i>';
+      }
+      const html = pl.out ? '✔ ' + nm + ' – fertig' : role + nm + '<b>' + pl.hand.length + '</b>' + tag;
       UI.setLabel(i, html, (pl.out ? 'out ' : '') + (i === g.actor && g.phase === 'play' ? 'turn' : ''), i !== st.actor);
     });
     const waitAway = isHost() && st.awaitSeat >= 0 && st.away[st.awaitSeat];
@@ -2842,7 +2906,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   function localCfg() {
     const n = set.players;
     return {
-      names: set.names.slice(0, n).map((s, i) => (s || '').trim() || 'Spieler ' + (i + 1)),
+      names: set.names.slice(0, n).map((s, i) => (i === 0 && !set.cpu[0] && DK.Profiles && DK.Profiles.label()) || (s || '').trim() || 'Spieler ' + (i + 1)),
       kinds: set.cpu.slice(0, n).map((c) => (c ? 'cpu' : 'local')),
       opts: { transfer: set.transfer, first5: set.first5, deckSize: set.deck, dir: set.clockwise ? -1 : 1 },
       net: null, me: -1
@@ -2850,7 +2914,8 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   }
   function enterGame(n) {
     showOnly(null); UI.show('hud', true); keepAwake(true);
-    UI.show('btnReveal', !st.net); UI.show('btnRestart', !isClient()); UI.show('awayBar', false);
+    UI.show('btnReveal', !st.net); UI.show('btnRestart', !isClient() && !st.arena); UI.show('awayBar', false);
+    if (DK.Effects) DK.Effects.temp(null);          // Durak-Kappe vom letzten Spiel wieder ab
     S.setSeats(n); S.idleSpin = false; UI.buildLabels(n);
     if (DK.Video) setTimeout(() => DK.Video.announce(), 0);
   }
@@ -2864,7 +2929,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       cfg, net: cfg.net, me: cfg.me, names: cfg.names.slice(), kind: cfg.kinds.slice(), auto: [], away: cfg.kinds.map(() => false),
       playing: true, actor: -1, turnOf: -1, lastHuman: -1, revealed: false, hold: false, selected: null, dragging: null, busy: true,
       trumpShown: false, showCard: null, fieldYaw: 0, over: false, winner: null, solo: mySeats.length === 1, mySeat: mySeats[0], holdField: null,
-      ready: null, awaitSeat: -1, acts: 0, revealAll: false, gid: DK.Net ? DK.Net.rid(6) : ''
+      ready: null, awaitSeat: -1, acts: 0, revealAll: false, gid: DK.Net ? DK.Net.rid(6) : '', arena: cfg.arena || 0
     });
     $('btnReveal').classList.remove('on');
     enterGame(n); S.setAzDeg(0);
@@ -3000,6 +3065,13 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       info.title = pname(g.loser) + ' ist der Durak!';
       info.text = '🤡 ' + pname(g.loser) + ' bleibt mit ' + g.players[g.loser].hand.length + ' Karten sitzen. ' + win;
     }
+    info.gid = st.gid;
+    if (st.arena && g.loser != null) {               // Arena: der Durak verliert den Einsatz, die anderen teilen ihn sich
+      const n = g.players.length, E = st.arena, share = Math.floor(E / (n - 1));
+      info.arena = E; info.deltas = g.players.map((p, i) => (i === g.loser ? -E : share));
+      const w = st.winner != null && st.winner !== g.loser ? st.winner : (g.loser + 1) % n;
+      info.deltas[w] += E - share * (n - 1);
+    }
     st.lastOver = info; bc(info); showOver(info);
   }
   function showOver(info) {
@@ -3010,6 +3082,12 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     });
     DK.saveStats(); UI.renderScores();
     $('overTitle').textContent = info.title; $('overText').textContent = info.text;
+    // Punkte für das eigene Profil (online: eigener Platz, an einem Gerät: Platz 1)
+    const me = st.net ? st.me : (st.kind[0] === 'local' ? 0 : -1);
+    let pts = '';
+    if (me >= 0 && DK.Profiles) pts = DK.Profiles.record({ key: (info.gid || st.gid) + ':' + me, won: info.winner === me, durak: info.loser === me, arena: !!info.arena, delta: info.deltas ? info.deltas[me] : 0 });
+    $('overPoints').textContent = pts;
+    if (me >= 0 && info.loser === me && DK.Effects) DK.Effects.temp('jester');     // der Durak bekommt die Narrenkappe
     if (info.loser != null) setTimeout(() => A.laugh(3), 500);
     UI.show('btnAgain', !isClient()); UI.show('overWait', isClient()); UI.show('btnBackLobby', isHost());
     UI.show('gameover', true);
@@ -3079,7 +3157,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     const same = st.playing && isClient() && st.gid === m.gid;
     Object.assign(st, {
       net: session, me: m.me, mySeat: m.me, names: m.names, kind: m.names.map((x, i) => (i === m.me ? 'local' : 'remote')), auto: [], away: [],
-      playing: true, busy: true, over: false, solo: true, pending: false, ready: null, revealAll: false, opts: m.opts, trumpSuit: m.trump, gid: m.gid
+      playing: true, busy: true, over: false, solo: true, pending: false, ready: null, revealAll: false, opts: m.opts, trumpSuit: m.trump, gid: m.gid, arena: m.arena || 0
     });
     if (same) { if (DK.Video) DK.Video.announce(); return; }   // nur neu verbunden: Karten und Kamera bleiben
     Object.assign(st, { actor: -1, winner: null, swung: false, wasGo: false, fresh: true, trumpShown: false, showCard: null, selected: null, dragging: null, fieldYaw: 0, game: null });
@@ -3094,7 +3172,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     g.deck = s.deck.map(C); g.discard = s.discard.map(C); g.trumpCard = g.deck[0] || null;
     g.field = s.field.map((f) => ({ attack: C(f[0]), defense: f[1] ? C(f[1]) : null }));
     g.phase = s.phase; g.mode = s.mode; g.actor = s.actor; g.attacker = s.attacker; g.defender = s.defender;
-    g.taking = s.taking; g.loser = s.loser; g.passes = new Set();
+    g.taking = s.taking; g.loser = s.loser; g.passes = new Set(s.passes || []); g.lead = s.lead;
     return g;
   }
   function clientState(m) {
@@ -3293,7 +3371,10 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   on('btnScoresReset', () => { DK.resetStats(); UI.renderScores(); A.play('click'); });
   on('btnMenu', () => { A.play('click'); UI.show('menu', true); });
   on('btnResume', () => { A.play('click'); UI.show('menu', false); });
-  on('btnQuit', () => toTitle());
+  on('btnQuit', () => {
+    if (st.playing && !st.over && st.arena && st.net && DK.Profiles) DK.Profiles.penalty(st.arena, 'Arena aufgegeben');
+    toTitle();
+  });
   on('btnToTitle', () => toTitle());
   on('btnReady', () => { A.play('click'); if (st.ready) st.ready(); });
   on('btnTakeover', takeover);
@@ -3354,6 +3435,116 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
 
 </script>
   <script>
+/* Durak 3D – Profile und Punkte (ohne E-Mail, nur auf diesem Gerät gespeichert)
+ *
+ * Jedes Gerät kann mehrere Profile haben (z. B. Familien-Tablet). Ein Profil ist aktiv: mit ihm spielt man
+ * online und auf Platz 1 an diesem Gerät. Normale Partien bringen Punkte, in der Punkte-Arena wird um
+ * Punkte gespielt. Startguthaben: 500 Punkte.
+ */
+(function () {
+  'use strict';
+  const DK = window.DK, UI = DK.UI, $ = UI.$;
+  const KEY = 'durak3d.profiles', DONE = 'durak3d.awarded';
+  const START = 500, MAX = 8;
+  const AVATARS = ['🦊', '🐻', '🐼', '🐯', '🦁', '🐸', '🐧', '🦉', '🐺', '🐲', '🤠', '👸', '🧙', '🤖', '👻', '🎩'];
+  const REWARD = { win: 30, safe: 10 };          // normale Partie: Gewinner, nicht Durak
+
+  let data = { active: '', list: [] };
+  try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (d && Array.isArray(d.list)) data = d; } catch (e) { /* neu */ }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { /* voll */ } render(); }
+  const clean = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 12);
+  const fmt = (n) => Math.round(n).toLocaleString('de-DE');
+  const active = () => data.list.find((p) => p.id === data.active) || null;
+
+  function create(name, avatar) {
+    name = clean(name);
+    if (!name) return UI.toast('Bitte einen Namen eingeben'), null;
+    if (data.list.length >= MAX) return UI.toast('Höchstens ' + MAX + ' Profile pro Gerät'), null;
+    if (data.list.some((p) => p.name.toLowerCase() === name.toLowerCase())) return UI.toast('Diesen Namen gibt es schon'), null;
+    const p = { id: DK.Net ? DK.Net.rid(10) : String(Date.now()), name, avatar: avatar || AVATARS[0], points: START, games: 0, wins: 0, duraks: 0, arenaWon: 0, arenaLost: 0, created: Date.now() };
+    data.list.push(p); data.active = p.id; save();
+    return p;
+  }
+
+  /* Punkte gutschreiben – jede Partie nur einmal (Schutz gegen doppelte Gutschrift beim Neu-Verbinden) */
+  let done = [];
+  try { done = JSON.parse(localStorage.getItem(DONE) || '[]') || []; } catch (e) { done = []; }
+  function once(key) {
+    if (!key) return true;
+    if (done.indexOf(key) >= 0) return false;
+    done.push(key); done = done.slice(-40);
+    try { localStorage.setItem(DONE, JSON.stringify(done)); } catch (e) { /* egal */ }
+    return true;
+  }
+  /* Ergebnis einer Partie für das aktive Profil. r: { key, won, durak, arena, delta } -> Text für die Anzeige */
+  function record(r) {
+    const p = active(); if (!p || !once(r.key)) return '';
+    p.games++; if (r.won) p.wins++; if (r.durak) p.duraks++;
+    let d;
+    if (r.arena) { d = r.delta || 0; if (d > 0) p.arenaWon += d; if (d < 0) p.arenaLost -= d; }
+    else d = r.won ? REWARD.win : r.durak ? 0 : REWARD.safe;
+    p.points = Math.max(0, p.points + d);
+    save();
+    return p.avatar + ' ' + p.name + ': ' + (d > 0 ? '+' : '') + fmt(d) + ' Punkte (jetzt ' + fmt(p.points) + ')';
+  }
+  function penalty(amount, why) {
+    const p = active(); if (!p || !amount) return;
+    p.points = Math.max(0, p.points - amount); p.arenaLost += amount; save();
+    UI.announce(why + ': −' + fmt(amount) + ' Punkte', 2600);
+  }
+
+  /* ---------- Anzeige: Knopf auf dem Titelbild und Profil-Bildschirm ---------- */
+  let pickAvatar = AVATARS[0], confirmDel = '';
+  function render() {
+    const p = active();
+    $('btnProfile').textContent = p ? p.avatar + ' ' + p.name + ' · ' + fmt(p.points) + ' P' : '👤 Profil anlegen';
+    const list = $('profileList'); list.innerHTML = '';
+    if (!data.list.length) { const e = document.createElement('p'); e.className = 'small'; e.textContent = 'Noch kein Profil. Lege eins an – ohne E-Mail, nur auf diesem Gerät.'; list.appendChild(e); }
+    data.list.forEach((q) => {
+      const row = document.createElement('div'); row.className = 'lrow prof' + (q.id === data.active ? ' act' : '');
+      const info = document.createElement('div');
+      const t = document.createElement('b'); t.textContent = q.avatar + ' ' + q.name;
+      const pts = document.createElement('span'); pts.className = 'pts'; pts.textContent = fmt(q.points) + ' P';
+      const sm = document.createElement('small'); sm.textContent = q.games + ' Spiele · ' + q.wins + ' Siege · ' + q.duraks + '× Durak';
+      info.appendChild(t); info.appendChild(pts); info.appendChild(sm);
+      const use = document.createElement('button'); use.className = q.id === data.active ? 'ghost on' : 'ghost';
+      use.textContent = q.id === data.active ? '✔ Aktiv' : 'Spielen als';
+      use.addEventListener('click', () => { data.active = q.id; confirmDel = ''; save(); });
+      const del = document.createElement('button'); del.className = 'ghost'; del.textContent = confirmDel === q.id ? 'Wirklich löschen?' : '✕';
+      del.addEventListener('click', () => {
+        if (confirmDel !== q.id) { confirmDel = q.id; render(); return; }
+        data.list = data.list.filter((x) => x.id !== q.id);
+        if (data.active === q.id) data.active = data.list.length ? data.list[0].id : '';
+        confirmDel = ''; save();
+      });
+      row.appendChild(info); row.appendChild(use); row.appendChild(del); list.appendChild(row);
+    });
+    const av = $('avatarPick');
+    if (!av.children.length) AVATARS.forEach((a) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'emo'; b.textContent = a;
+      b.addEventListener('click', () => { pickAvatar = a; render(); }); av.appendChild(b);
+    });
+    av.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.textContent === pickAvatar));
+    UI.show('profileNew', data.list.length < MAX);
+  }
+  $('btnProfile').addEventListener('click', () => { DK.Audio.init(); DK.Game.go('title', 'profiles'); });
+  $('btnProfBack').addEventListener('click', () => DK.Game.back('profiles'));
+  $('btnProfCreate').addEventListener('click', () => {
+    const box = $('profName');
+    if (create(box.value, pickAvatar)) { box.value = ''; UI.toast('Profil angelegt'); DK.Audio.play('turn'); }
+  });
+  $('profName').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btnProfCreate').click(); });
+  render();
+
+  DK.Profiles = {
+    active, record, penalty, fmt, render, START,
+    /* Anzeigename für Tisch und Lobby, z. B. "🦊 Johan" */
+    label() { const p = active(); return p ? p.avatar + ' ' + p.name : ''; }
+  };
+})();
+
+</script>
+  <script>
 /* Durak 3D – Video-Effekte: Narrenkappe, Sonnenbrille, Krone … direkt auf dem Gesicht
  *
  * Das Kamerabild läuft durch eine Zeichenfläche: dort wird der gewählte Effekt auf das Gesicht gemalt,
@@ -3376,15 +3567,31 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     { id: 'clown', icon: '🔴', name: 'Clownsnase' },
     { id: 'bunny', icon: '🐰', name: 'Hasenohren' }
   ];
-  let current = DK.settings.videoFx || 'none';
-  let tracker = null, loading = null, failed = false;
+  const SEG = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite';
+  let current = DK.settings.videoFx || 'none', temp = null, blur = !!DK.settings.videoBlur;
+  let tracker = null, loading = null, failed = false, baseP = null;
+  let seg = null, segLoading = null, segFailed = false;
+  /* Gemeinsame Grundlage (Programm + WASM) für Gesichtserkennung und Hintergrund-Erkennung */
+  function base() {
+    if (!baseP) baseP = import(MP + '/vision_bundle.mjs').then(async (V) => ({ V, files: await V.FilesetResolver.forVisionTasks(MP + '/wasm') }));
+    return baseP;
+  }
+  function loadSeg() {
+    if (seg || segLoading || segFailed) return;
+    segLoading = base().then(async ({ V, files }) => {
+      const make = (delegate) => V.ImageSegmenter.createFromOptions(files, {
+        baseOptions: { modelAssetPath: SEG, delegate }, runningMode: 'VIDEO', outputConfidenceMasks: true, outputCategoryMask: false
+      });
+      seg = await make('GPU').catch(() => make('CPU'));
+      segLoading = null;
+    }).catch(() => { segFailed = true; segLoading = null; if (DK.UI) DK.UI.toast('Hintergrund-Unschärfe nicht verfügbar'); });
+  }
 
   /* ---------- Gesichtserkennung nachladen ---------- */
   function loadTracker() {
     if (tracker || loading || failed) return loading;
     if (DK.UI) DK.UI.toast('Gesichtserkennung wird geladen …');
-    loading = import(MP + '/vision_bundle.mjs').then(async (V) => {
-      const files = await V.FilesetResolver.forVisionTasks(MP + '/wasm');
+    loading = base().then(async ({ V, files }) => {
       const make = (delegate) => V.FaceLandmarker.createFromOptions(files, {
         baseOptions: { modelAssetPath: MODEL, delegate }, runningMode: 'VIDEO', numFaces: 1
       });
@@ -3496,15 +3703,50 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     v.srcObject = raw; v.play().catch(() => {});
     const c = document.createElement('canvas'), x = c.getContext('2d');
     c.width = 480; c.height = 360;
-    let face = null, n = 0, lastT = -1;
+    let face = null, n = 0, lastT = -1, lastS = -1, haveMask = false;
+    const sc = document.createElement('canvas'), sx = sc.getContext('2d');      // kleines Bild = unscharfer Hintergrund
+    const pc = document.createElement('canvas'), px = pc.getContext('2d');      // Person freigestellt
+    const mc = document.createElement('canvas'), mx = mc.getContext('2d');      // Maske aus der Erkennung
+    function useMask(arr, mw, mh) {
+      if (mc.width !== mw || mc.height !== mh) { mc.width = mw; mc.height = mh; }
+      const img = mx.createImageData(mw, mh), d = img.data;
+      for (let i = 0; i < arr.length; i++) d[i * 4 + 3] = Math.min(255, Math.max(0, (arr[i] - 0.15) * 340));
+      mx.putImageData(img, 0, 0); haveMask = true;
+    }
     const timer = setInterval(() => {
       if (v.readyState < 2 || !v.videoWidth) return;
       if (c.width !== v.videoWidth || c.height !== v.videoHeight) { c.width = v.videoWidth; c.height = v.videoHeight; }
       const w = c.width, h = c.height;
       x.drawImage(v, 0, 0, w, h);
-      if (current === 'none' || !DRAW[current]) return;
+      n++;
+      if (blur) {
+        if (!seg) loadSeg();
+        else if (n % 2 === 0) {
+          try {
+            const t = performance.now();
+            if (t > lastS) {
+              lastS = t;
+              const r = seg.segmentForVideo(v, t), m = r && r.confidenceMasks && r.confidenceMasks[0];
+              if (m) useMask(m.getAsFloat32Array(), m.width, m.height);
+              if (r && r.close) r.close();
+            }
+          } catch (e) { /* einzelner Aussetzer */ }
+        }
+        if (haveMask) {
+          sc.width = Math.max(8, w >> 4); sc.height = Math.max(6, h >> 4);
+          sx.drawImage(v, 0, 0, sc.width, sc.height);
+          x.imageSmoothingEnabled = true; x.drawImage(sc, 0, 0, w, h);
+          if (pc.width !== w || pc.height !== h) { pc.width = w; pc.height = h; }
+          px.globalCompositeOperation = 'source-over'; px.clearRect(0, 0, w, h); px.drawImage(v, 0, 0, w, h);
+          px.globalCompositeOperation = 'destination-in'; px.drawImage(mc, 0, 0, w, h);
+          px.globalCompositeOperation = 'source-over';
+          x.drawImage(pc, 0, 0);
+        }
+      }
+      const fx = temp || current;
+      if (fx === 'none' || !DRAW[fx]) return;
       let next = null;
-      if (tracker && (n++ % 2 === 0)) {
+      if (tracker && (n % 2 === 1)) {
         try {
           const t = performance.now(); if (t <= lastT) return; lastT = t;
           const r = tracker.detectForVideo(v, t);
@@ -3512,7 +3754,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
         } catch (e) { /* einzelner Aussetzer */ }
       } else if (!tracker && !loading) { loadTracker(); }
       if (next) face = smooth(face, next, 0.55);
-      DRAW[current](x, face || guessFace(w, h));
+      DRAW[fx](x, face || guessFace(w, h));
     }, 50);
     const out = c.captureStream(20);
     raw.getAudioTracks().forEach((t) => out.addTrack(t));
@@ -3528,7 +3770,10 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     if (current !== 'none') loadTracker();
   }
 
-  DK.Effects = { list: LIST, wrap, set, get current() { return current; }, canCapture: !!HTMLCanvasElement.prototype.captureStream };
+  function setBlur(on) { blur = !!on; DK.settings.videoBlur = blur; DK.saveSettings(); if (blur) loadSeg(); }
+  /* Vorübergehender Effekt, z. B. die Narrenkappe für den Durak am Spielende (null = wieder normal) */
+  function setTemp(id) { temp = id && DRAW[id] ? id : null; if (temp) loadTracker(); }
+  DK.Effects = { list: LIST, wrap, set, setBlur, temp: setTemp, get current() { return current; }, get blur() { return blur; }, canCapture: !!HTMLCanvasElement.prototype.captureStream };
 })();
 
 </script>
@@ -3693,8 +3938,12 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       b.addEventListener('click', () => { DK.Effects.set(e.id); markFx(); });
       bar.appendChild(b);
     });
+    const bl = document.createElement('button'); bl.type = 'button'; bl.className = 'ghost blurBtn'; bl.dataset.blur = '1';
+    bl.innerHTML = '<span class="ic">🌫️</span><small>Hintergrund unscharf</small>';
+    bl.addEventListener('click', () => { DK.Effects.setBlur(!DK.Effects.blur); markFx(); });
+    bar.appendChild(bl);
   }
-  function markFx() { bar.querySelectorAll('button').forEach((b) => b.classList.toggle('on', DK.Effects && b.dataset.fx === DK.Effects.current)); }
+  function markFx() { bar.querySelectorAll('button').forEach((b) => b.classList.toggle('on', !!DK.Effects && (b.dataset.blur ? DK.Effects.blur : b.dataset.fx === DK.Effects.current))); }
   function toggleFx(on) {
     if (on == null) on = bar.classList.contains('hidden') && !!stream;
     bar.classList.toggle('hidden', !on); markFx();
@@ -3801,6 +4050,25 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     bubbles.push({ seat, el, until: Date.now() + SHOW_MS });
     while (bubbles.filter((b) => b.seat === seat).length > 2) { const old = bubbles.find((b) => b.seat === seat); old.el.remove(); bubbles.splice(bubbles.indexOf(old), 1); }
     A.play('flip');
+    if (emojiOnly(text)) fly(seat, text);
+  }
+
+  /* Emoji fliegt vom Absender groß über den Tisch */
+  function fly(seat, text) {
+    const s = st(), W = window.innerWidth, H = window.innerHeight;
+    let x0, y0;
+    if (seat === s.me || seat === s.actor) { x0 = W / 2; y0 = H * 0.75; }
+    else { const p = DK.Scene.seatScreen(seat); x0 = p.x; y0 = p.y; }
+    const el = document.createElement('div'); el.className = 'flyemo'; el.textContent = text;
+    $('labels').appendChild(el);
+    const dx = W / 2 - x0, dy = H * 0.42 - y0;
+    if (!el.animate) { setTimeout(() => el.remove(), 1500); return; }
+    el.style.left = x0 + 'px'; el.style.top = y0 + 'px';
+    el.animate([
+      { transform: 'translate(-50%,-50%) scale(.6) rotate(-20deg)', opacity: 0 },
+      { transform: 'translate(calc(-50% + ' + dx * 0.55 + 'px), calc(-50% + ' + (dy * 0.55 - 60) + 'px)) scale(2.2) rotate(10deg)', opacity: 1, offset: 0.45 },
+      { transform: 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px)) scale(3.4) rotate(0deg)', opacity: 0 }
+    ], { duration: 1600, easing: 'ease-out' }).onfinish = () => el.remove();
   }
 
   /* Jedes Bild: Leiste ein-/ausblenden, Blasen an den Namen der Spieler ausrichten */
@@ -3846,10 +4114,11 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   try { pid = localStorage.getItem('durak3d.pid') || ''; } catch (e) { /* egal */ }
   if (!pid) { pid = Net.rid(12); try { localStorage.setItem('durak3d.pid', pid); } catch (e) { /* egal */ } }
 
-  const clean = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 14);
-  const myName = () => clean(set.myName) || 'Spieler';
+  const clean = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 18);
+  const myName = () => (DK.Profiles && DK.Profiles.label()) || clean(set.myName) || 'Spieler';
+  const myPoints = () => { const p = DK.Profiles && DK.Profiles.active(); return p ? p.points : null; };
   const randCode = () => { let s = ''; for (let i = 0; i < 4; i++) s += ALPHA[Math.floor(Math.random() * ALPHA.length)]; return s; };
-  const rulesText = () => set.deck + ' Karten · Weitergeben ' + (set.transfer ? 'an' : 'aus') + (set.first5 ? ' · erster Angriff max. 5' : '') + (set.clockwise ? ' · im Uhrzeigersinn' : '');
+  const rulesText = () => (room && room.arena ? '⚔️ Arena · Einsatz ' + room.arena + ' P · ' : '') + set.deck + ' Karten · Weitergeben ' + (set.transfer ? 'an' : 'aus') + (set.first5 ? ' · erster Angriff max. 5' : '') + (set.clockwise ? ' · im Uhrzeigersinn' : '');
 
   function wait(text) { $('netText').textContent = text; UI.show('netwait', true); }
   function unwait() { UI.show('netwait', false); }
@@ -3862,16 +4131,16 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   }
 
   /* ---------- Gastgeber ---------- */
-  function openRoom(tries) {
+  function openRoom(tries, stake) {
     if (!Net.supported) return fail('Dieser Browser kann keine direkte Verbindung aufbauen.');
     A.init();
     const code = randCode();
     wait('Spiel wird eröffnet …');
     opening = Net.host(code, {
-      ready() { room = { code, conn: opening, running: false, players: [{ kind: 'host', name: myName() }] }; opening = null; unwait(); showLobby(); },
+      ready() { room = { code, conn: opening, running: false, arena: stake || 0, players: [{ kind: 'host', name: myName(), points: myPoints() }] }; opening = null; unwait(); showLobby(); },
       error(kind) {
         opening = null;
-        if (kind === 'taken' && tries < 5) return openRoom(tries + 1);
+        if (kind === 'taken' && tries < 5) return openRoom(tries + 1, stake);
         fail('Keine Verbindung zum Vermittlungsdienst. Bitte Internet prüfen.');
       },
       open() { /* wartet auf "hello" */ },
@@ -3888,14 +4157,16 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       if (i >= 0) {                                   // bekannter Spieler kommt zurück
         const p = room.players[i];
         if (p.link && p.link !== link) p.link.close();
-        p.link = link; p.online = true; link.player = p;
+        p.link = link; p.online = true; link.player = p; if (m.prof) p.points = m.prof.points;
         link.send({ t: 'welcome', code: room.code });
         if (room.running) G.seatOnline(i, true); else sendLobby();
         return;
       }
       if (room.running) return deny(link, 'running');
       if (room.players.length >= 4) return deny(link, 'full');
-      const p = { kind: 'remote', pid: String(m.pid), name: uniqueName(clean(m.name)), link, online: true };
+      if (room.arena && !m.prof) return deny(link, 'noprofile');
+      if (room.arena && !(m.prof.points >= room.arena)) return deny(link, 'poor');
+      const p = { kind: 'remote', pid: String(m.pid), name: uniqueName(clean(m.name)), link, online: true, points: m.prof ? +m.prof.points || 0 : null };
       link.player = p; room.players.push(p);
       link.send({ t: 'welcome', code: room.code });
       A.play('turn'); sendLobby();
@@ -3925,9 +4196,10 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   }
   function sendLobby() {
     if (!room) return;
-    const players = room.players.map((p) => ({ name: p.name, kind: p.kind }));
-    room.players.forEach((p, i) => { if (p.link) p.link.send({ t: 'lobby', code: room.code, players, you: i, rules: rulesText() }); });
-    renderLobby({ code: room.code, players, you: 0, rules: rulesText() }, true);
+    room.players[0].points = myPoints();
+    const players = room.players.map((p) => ({ name: p.name, kind: p.kind, points: p.points }));
+    room.players.forEach((p, i) => { if (p.link) p.link.send({ t: 'lobby', code: room.code, players, you: i, rules: rulesText(), arena: room.arena }); });
+    renderLobby({ code: room.code, players, you: 0, rules: rulesText(), arena: room.arena }, true);
   }
   const session = {
     role: 'host',
@@ -3943,7 +4215,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       names: room.players.map((p) => p.name),
       kinds: room.players.map((p) => (p.kind === 'host' ? 'local' : p.kind === 'cpu' ? 'cpu' : 'remote')),
       opts: { transfer: set.transfer, first5: set.first5, deckSize: set.deck, dir: set.clockwise ? -1 : 1 },
-      net: session, me: 0
+      net: session, me: 0, arena: room.arena
     });
     room.players.forEach((p, i) => { if (p.kind === 'remote' && !p.online) G.seatOnline(i, false); });
   }
@@ -3962,7 +4234,9 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   };
   const DENY = {
     full: 'Der Raum ist schon voll.', running: 'Dieses Spiel läuft bereits.',
-    version: 'Unterschiedliche Spielversionen – bitte auf beiden Geräten die Seite neu laden.'
+    version: 'Unterschiedliche Spielversionen – bitte auf beiden Geräten die Seite neu laden.',
+    poor: 'Zu wenig Punkte für den Einsatz dieser Arena.',
+    noprofile: 'Für die Arena brauchst du ein Profil (Titelbild → Profil anlegen).'
   };
   function join(code, again) {
     if (!Net.supported) return fail('Dieser Browser kann keine direkte Verbindung aufbauen.');
@@ -3972,7 +4246,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     if (!again) { cl = { code, want: true, joined: false, tries: 0 }; wait('Verbinde mit Raum ' + code + ' …'); }
     const me = cl;
     me.conn = Net.join(code, {
-      open() { me.conn.send({ t: 'hello', v: PROTO, pid, name: myName() }); },
+      open() { const pts = myPoints(); me.conn.send({ t: 'hello', v: PROTO, pid, name: myName(), prof: pts == null ? null : { points: pts } }); },
       data: clientData,
       close() { lost(me); },
       fail(kind) { if (me.joined) lost(me); else if (cl === me) { cl = null; fail(FAIL[kind] || FAIL.timeout); } }
@@ -4021,7 +4295,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     m.players.forEach((p, i) => {
       const row = document.createElement('div'); row.className = 'lrow';
       const name = document.createElement('span');
-      name.textContent = (p.kind === 'cpu' ? '🤖 ' : p.kind === 'host' ? '👑 ' : '👤 ') + p.name + (i === m.you ? ' (du)' : '');
+      name.textContent = (p.kind === 'cpu' ? '🤖 ' : p.kind === 'host' ? '👑 ' : '') + p.name + (i === m.you ? ' (du)' : '') + (p.points != null ? ' · ' + DK.Profiles.fmt(p.points) + ' P' : '');
       row.appendChild(name);
       if (host && i > 0) {
         const x = document.createElement('button'); x.className = 'ghost'; x.textContent = '✕'; x.title = 'Entfernen';
@@ -4039,7 +4313,9 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       list.appendChild(row);
     }
     UI.show('lobbyHost', host); UI.show('lobbyGuest', !host);
-    UI.show('btnAddCpu', host); UI.show('btnLobbyStart', host);
+    UI.show('btnAddCpu', host && !m.arena); UI.show('btnLobbyStart', host);
+    UI.show('lobbyArena', !!m.arena);
+    if (m.arena) $('lobbyArena').textContent = '⚔️ Punkte-Arena · Einsatz ' + m.arena + ' P – der Durak verliert ihn, die anderen teilen ihn sich.';
     $('lobbyRules').textContent = m.rules;
     if (host) {
       $('btnAddCpu').disabled = m.players.length >= 4;
@@ -4067,6 +4343,24 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   on('btnNetCancel', () => { if (st.net) G.toTitle(); else leaveLobby(); });
   on('btnLobbyLeave', leaveLobby);
   on('btnLobbyStart', startRoomGame);
+  /* Punkte-Arena */
+  function arenaWho() {
+    const p = DK.Profiles.active();
+    $('arenaWho').textContent = p ? p.avatar + ' ' + p.name + ' · ' + DK.Profiles.fmt(p.points) + ' P' : 'Kein Profil – bitte erst eins anlegen';
+  }
+  on('btnArena', () => { arenaWho(); G.go('title', 'arena'); });
+  on('btnArenaBack', () => G.showOnly('title'));
+  on('btnArenaProfile', () => G.go('arena', 'profiles'));
+  $('btnProfBack').addEventListener('click', arenaWho);   // nach dem Anlegen eines Profils aktualisieren
+  on('btnArenaHost', () => {
+    const p = DK.Profiles.active();
+    if (!p) return fail(DENY.noprofile);
+    if (p.points < set.stake) return fail('Zu wenig Punkte für diesen Einsatz (du hast ' + DK.Profiles.fmt(p.points) + ').');
+    openRoom(0, set.stake);
+  });
+  on('btnArenaJoin', () => { if (!DK.Profiles.active()) return fail(DENY.noprofile); join($('arenaCode').value); });
+  $('arenaCode').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4); });
+  $('arenaCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btnArenaJoin').click(); });
   on('btnBackLobby', () => {                      // Revanche: alle zurück in die Lobby
     if (!room) return;
     room.running = false;

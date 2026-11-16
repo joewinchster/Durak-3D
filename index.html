@@ -335,6 +335,27 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
 #hint { top: clamp(50px, 8.5vw, 64px); bottom: auto; }
 @media (orientation: portrait) { #hint { top: clamp(50px, 13vw, 64px); bottom: auto; } }
 
+/* ---------- Nachrichten und Emojis ---------- */
+#chatBar {
+  position: absolute; left: 50%; bottom: max(10px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 6;
+  width: min(94vw, 560px); display: flex; flex-direction: column; gap: 6px; padding: 8px;
+  background: var(--panel); border: 1.5px solid var(--gold); border-radius: 16px; box-shadow: 0 8px 30px rgba(0, 0, 0, .55);
+}
+.crow { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; align-items: center; }
+.crow .emo { font-size: clamp(20px, 4.4vh, 28px); width: 1.7em; height: 1.6em; border-radius: 10px; background: rgba(255, 255, 255, .08); }
+.crow .emo:active { transform: scale(.9); }
+.crow .ghost { padding: .35em .7em; font-size: clamp(12px, 2.6vh, 15px); }
+.crow .txt { flex: 1 1 10em; }
+.crow .big.small { padding: .4em 1em; font-size: clamp(13px, 2.8vh, 17px); }
+.bubble {
+  position: absolute; max-width: min(70vw, 320px); padding: .4em .75em; border-radius: 14px 14px 14px 4px; z-index: 3;
+  background: #fff8e6; color: #241a0a; font-size: clamp(13px, 2.2vw, 16px); font-weight: 600; line-height: 1.25;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .45); border: 2px solid var(--gold); word-break: break-word; pointer-events: none;
+}
+.bubble b { color: #8a5a10; font-size: .85em; }
+.bubble.big { font-size: clamp(26px, 5vw, 38px); padding: .15em .45em; }
+.bubble.big b { font-size: 13px; display: block; }
+
 </style>
 </head>
 <body>
@@ -351,6 +372,7 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
       <div id="trumpInfo" title="Trumpf und Nachziehstapel"></div>
       <div id="status"></div>
       <div class="spacer"></div>
+      <button id="btnChat" class="icon hidden" title="Nachricht oder Emoji senden">💬</button>
       <button id="btnCam" class="icon hidden" title="Kamera und Mikrofon ein/aus">📹</button>
       <button id="btnMic" class="icon hidden" title="Mikrofon stumm">🎤</button>
       <button id="btnFull" class="icon" title="Vollbild">⛶</button>
@@ -370,6 +392,12 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
       <button id="btnTakeover" class="ghost">🤖 Computer übernimmt</button></div>
     <div id="toast"></div>
     <div id="videos"></div>
+    <div id="chatBar" class="hidden">
+      <div id="chatEmoji" class="crow"></div>
+      <div id="chatPhrases" class="crow"></div>
+      <div class="crow"><input id="chatText" class="txt" type="text" maxlength="60" placeholder="Nachricht …" autocomplete="off" spellcheck="false" enterkeyhint="send">
+        <button id="btnChatSend" class="big small">Senden</button></div>
+    </div>
   </div>
 
   <div id="announce"></div>
@@ -410,6 +438,10 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
       <div class="opt"><span>🎥 Kamera schwenkt zum Spieler</span><button class="tog" data-set="autoCam"></button></div>
       <div class="opt"><span>🏠 Raum</span>
         <div class="seg" data-set="room"><button data-val="terrasse">Terrasse</button><button data-val="stube">Stube</button><button data-val="casino">Casino</button><button data-val="kamin">Kaminzimmer</button><button data-val="garten">Garten</button></div></div>
+      <div class="opt"><span>🟩 Tischfarbe</span>
+        <div class="seg" data-set="tableColor"><button data-val="auto">Passend</button><button data-val="green">Grün</button><button data-val="blue">Blau</button><button data-val="red">Rot</button><button data-val="purple">Lila</button><button data-val="black">Schwarz</button></div></div>
+      <div class="opt"><span>🂠 Kartenrückseite</span>
+        <div class="seg" data-set="backColor"><button data-val="auto">Passend</button><button data-val="red">Rot</button><button data-val="blue">Blau</button><button data-val="green">Grün</button><button data-val="black">Schwarz-Gold</button></div></div>
       <div class="opt"><span>🃏 Handkarten sortieren</span>
         <div class="seg" data-set="sort"><button data-val="rank">Nach Wert</button><button data-val="suit">Nach Farbe</button></div></div>
       <div class="opt"><span>📱 Übergabe-Bildschirm <small>„Gerät weitergeben“ vor jedem Zug</small></span><button class="tog" data-set="handover"></button></div>
@@ -667,7 +699,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     music: true, musicVol: 60, musicTrack: 0, sfx: true, sfxVol: 80, laughs: true,
     players: 4, names: ['Spieler 1', 'Spieler 2', 'Spieler 3', 'Spieler 4'], cpu: [false, false, false, false],
     myName: '', peek: 'tap', handover: true, autoCam: true,
-    transfer: true, first5: true, deck: 36, clockwise: false, cpuLevel: 'normal', sort: 'rank', room: 'terrasse'
+    transfer: true, first5: true, deck: 36, clockwise: false, cpuLevel: 'normal', sort: 'rank', room: 'terrasse', tableColor: 'auto', backColor: 'auto'
   };
   function load(key) { try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { return {}; } }
   function save(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* privat/gesperrt */ } }
@@ -780,9 +812,17 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       const f = this.field[idx];
       return this.phase === 'play' && this.mode === 'defend' && !!f && !f.defense && this.beats(f.attack, card);
     }
+    /* Welche Angriffskarte soll diese Karte schlagen? Bevorzugt dieselbe Farbe (z. B. Herz auf Herz),
+       dabei die knappste. Ein Trumpf geht nur auf eine fremde Farbe, wenn keine eigene Farbe liegt. */
     defendIndexFor(card) {
-      for (let i = 0; i < this.field.length; i++) if (this.canDefendAt(card, i)) return i;
-      return -1;
+      let best = -1, score = -1e9;
+      for (let i = 0; i < this.field.length; i++) {
+        if (!this.canDefendAt(card, i)) continue;
+        const a = this.field[i].attack;
+        const s = a.suit === card.suit ? 1000 - (card.rank - a.rank) : a.rank;
+        if (s > score) { score = s; best = i; }
+      }
+      return best;
     }
     canTransferWith(card) {
       if (!this.opts.transfer || this.phase !== 'play' || this.mode !== 'defend') return false;
@@ -1231,32 +1271,35 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     return c;
   }
 
-  function drawBack() {
-    const c = canvas(FW, FH), x = c.getContext('2d');
+  /* Rückseiten-Farben: Grundfarbe, Linienfarbe */
+  const BACKS = { red: ['#d3222a', '#ffffff'], blue: ['#1f4fa3', '#ffffff'], green: ['#1e7a4c', '#ffffff'], black: ['#17171d', '#e9b53a'] };
+  function drawBack(color, c) {
+    const B = BACKS[color] || BACKS.red, COL = B[0], LN = B[1];
+    c = c || canvas(FW, FH); const x = c.getContext('2d');
     x.fillStyle = '#fdfdfb'; x.fillRect(0, 0, FW, FH);
-    rr(x, 20, 20, FW - 40, FH - 40, 16); x.fillStyle = '#d3222a'; x.fill();
+    rr(x, 20, 20, FW - 40, FH - 40, 16); x.fillStyle = COL; x.fill();
     x.save(); rr(x, 20, 20, FW - 40, FH - 40, 16); x.clip();
-    x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = 1.6;
+    x.strokeStyle = LN; x.globalAlpha = 0.55; x.lineWidth = 1.6;
     for (let i = -FH; i < FW + FH; i += 20) {
       x.beginPath(); x.moveTo(i, 0); x.lineTo(i + FH, FH); x.stroke();
       x.beginPath(); x.moveTo(i, FH); x.lineTo(i + FH, 0); x.stroke();
     }
-    x.fillStyle = 'rgba(255,255,255,.8)';
+    x.globalAlpha = 0.8; x.fillStyle = LN;
     for (let yy = 10; yy < FH; yy += 20) for (let xx = (yy / 20 | 0) % 2 ? 10 : 0; xx < FW; xx += 20) { x.beginPath(); x.arc(xx + 2, yy, 1.8, 0, 7); x.fill(); }
-    x.restore();
-    x.strokeStyle = '#fff'; x.lineWidth = 4; rr(x, 34, 34, FW - 68, FH - 68, 10); x.stroke();
+    x.restore(); x.globalAlpha = 1;
+    x.strokeStyle = LN; x.lineWidth = 4; rr(x, 34, 34, FW - 68, FH - 68, 10); x.stroke();
     const cx = FW / 2, cy = FH / 2;
-    x.fillStyle = '#d3222a'; x.beginPath(); x.ellipse(cx, cy, 92, 124, 0, 0, 7); x.fill(); x.stroke();
+    x.fillStyle = COL; x.beginPath(); x.ellipse(cx, cy, 92, 124, 0, 0, 7); x.fill(); x.stroke();
     x.lineWidth = 2;
     for (let i = 0; i < 16; i++) {
       const a = i * Math.PI / 8;
       x.beginPath(); x.ellipse(cx + Math.cos(a) * 44, cy + Math.sin(a) * 60, 40, 16, a * 1.0 + Math.PI / 2 * 0, 0, 7); x.stroke();
     }
-    x.fillStyle = '#fff'; x.beginPath(); x.arc(cx, cy, 30, 0, 7); x.fill();
-    drawSuit(x, 'spades', cx, cy, 34, false, '#d3222a');
+    x.fillStyle = LN; x.beginPath(); x.arc(cx, cy, 30, 0, 7); x.fill();
+    drawSuit(x, 'spades', cx, cy, 34, false, COL);
     for (const [px, py] of [[62, 66], [FW - 62, 66], [62, FH - 66], [FW - 62, FH - 66]]) {
-      x.fillStyle = '#d3222a'; x.beginPath(); x.arc(px, py, 20, 0, 7); x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 3; x.stroke();
-      drawSuit(x, 'diamonds', px, py, 20, false, '#fff');
+      x.fillStyle = COL; x.beginPath(); x.arc(px, py, 20, 0, 7); x.fill(); x.strokeStyle = LN; x.lineWidth = 3; x.stroke();
+      drawSuit(x, 'diamonds', px, py, 20, false, LN);
     }
     return c;
   }
@@ -1282,7 +1325,11 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
 
   /* ---------- Tisch ---------- */
   /* base: optionales Filz-Bild (Blender-Rendering); die goldene Zierlinie kommt immer obendrauf */
-  function drawFelt(base, c) {
+  /* Filzfarben: Mitte, Mitte-außen, Rand */
+  const FELTS = { green: ['#2b8f6b', '#1a6a50', '#0d4435'], blue: ['#2f6fb0', '#1d4f8a', '#0f2f5c'], red: ['#a3343f', '#7a1f2a', '#4a0f18'],
+    purple: ['#6a3f9a', '#4a2a75', '#2a1648'], black: ['#3a3d44', '#24262c', '#111216'] };
+  function drawFelt(base, c, color) {
+    const F = FELTS[color] || FELTS.green;
     const W = 1024, H = 700; c = c || canvas(W, H); const x = c.getContext('2d');
     if (base) {
       x.drawImage(base, 0, 0, W, H);
@@ -1290,7 +1337,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.38)'); x.fillStyle = v; x.fillRect(0, 0, W, H);
     } else {
       const g = x.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, W * 0.62);
-      g.addColorStop(0, '#2b8f6b'); g.addColorStop(0.6, '#1a6a50'); g.addColorStop(1, '#0d4435');
+      g.addColorStop(0, F[0]); g.addColorStop(0.6, F[1]); g.addColorStop(1, F[2]);
       x.fillStyle = g; x.fillRect(0, 0, W, H);
       const r = rng(7);
       for (let i = 0; i < 26000; i++) { x.fillStyle = r() > 0.5 ? 'rgba(255,255,255,.035)' : 'rgba(0,0,0,.05)'; x.fillRect(r() * W, r() * H, 1.5, 1.5); }
@@ -1398,15 +1445,25 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       this.cardNormal = slot(P.cardNormal, normalFromHeight(64, (x, y) => Math.sin(x * 1.57) * Math.sin(y * 1.57), 0.35), false, 6);
       this.cardRough = slot(P.cardRoughness, roughCanvas(64, 0.42, 0.08, 3), false, 4);
       const n = rng(11), feltH = new Float32Array(128 * 128).map(() => n());
-      const feltCanvas = drawFelt();
+      const feltCanvas = (this.feltCanvas = drawFelt());
       this.felt = tex(feltCanvas, true);
       const feltUrl = DK.asset(P.feltDiffuse);
-      if (feltUrl) { const img = new Image(); img.onload = () => { drawFelt(img, feltCanvas); this.felt.needsUpdate = true; }; img.src = feltUrl; }
+      if (feltUrl) { const img = new Image(); img.onload = () => { this.feltImg = img; this.setFelt(this.feltColor || 'green'); }; img.src = feltUrl; }
       this.feltNormal = slot(P.feltNormal, normalFromHeight(128, (x, y) => feltH[y * 128 + x], 1.4), false, 10);
       this.feltRough = slot(P.feltRoughness, roughCanvas(64, 0.93, 0.1, 5), false, 8);
       this.wood = slot(P.woodDiffuse, drawWood(), true, 0.22);
       this.woodNormal = slot(P.woodNormal, normalFromHeight(128, (x, y) => Math.sin(y * 0.9 + Math.sin(x * 0.08) * 3), 0.5), false, 0.22);
       this.woodRough = slot(P.woodRoughness, roughCanvas(64, 0.5, 0.15, 9), false, 0.22);
+    },
+    /* Filzfarbe wechseln – Grün nutzt das Blender-Rendering, andere Farben werden gezeichnet */
+    setFelt(color) {
+      this.feltColor = color;
+      if (!this.feltCanvas) return;
+      drawFelt(color === 'green' ? this.feltImg : null, this.feltCanvas, color); this.felt.needsUpdate = true;
+    },
+    setBack(color) {
+      if (!this.backCanvas || this.backColor === color) return;
+      this.backColor = color; drawBack(color, this.backCanvas); this.cardBack.needsUpdate = true;
     },
     faceCanvas(id) {
       if (!faces.has(id)) { const [suit, rank] = id.split('_'); faces.set(id, drawFace({ id, suit, rank: +rank })); }
@@ -2082,17 +2139,158 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   }
 
   const ROOMS = [
-    { id: 'terrasse', name: 'Terrasse', floor: () => planks('#6b4a2e', 'rgba(20,10,4,.55)'), rep: 9, wall: null,
+    { id: 'terrasse', name: 'Terrasse', felt: 'green', back: 'red', floor: () => planks('#6b4a2e', 'rgba(20,10,4,.55)'), rep: 9, wall: null,
       hemi: [0xfff4de, 0x2a3560, 0.82], sun: [0xffe6bd, 0.62] },
-    { id: 'stube', name: 'Stube', floor: () => planks('#9a6a3c', 'rgba(40,20,8,.5)'), rep: 9, rug: ['#8e1a20', '#e9c46a'],
+    { id: 'stube', name: 'Stube', felt: 'blue', back: 'red', floor: () => planks('#9a6a3c', 'rgba(40,20,8,.5)'), rep: 9, rug: ['#8e1a20', '#e9c46a'],
       wall: () => wallpaper('#e2d2ac', '#d4c095', '#6b4424'), hemi: [0xfff1d6, 0x5a4634, 0.9], sun: [0xffe9c4, 0.6] },
-    { id: 'casino', name: 'Casino', floor: () => carpet('#4a0d18', '#d9a43a'), rep: 14, wall: casinoWall,
+    { id: 'casino', name: 'Casino', felt: 'green', back: 'black', floor: () => carpet('#4a0d18', '#d9a43a'), rep: 14, wall: casinoWall,
       hemi: [0xffe2b0, 0x2a0810, 0.78], sun: [0xfff0c8, 0.7] },
-    { id: 'kamin', name: 'Kaminzimmer', floor: () => planks('#3b2416', 'rgba(0,0,0,.6)'), rep: 9, rug: ['#1f4a3a', '#d9a43a'],
+    { id: 'kamin', name: 'Kaminzimmer', felt: 'red', back: 'green', floor: () => planks('#3b2416', 'rgba(0,0,0,.6)'), rep: 9, rug: ['#1f4a3a', '#d9a43a'],
       wall: library, hemi: [0xffcf99, 0x24140a, 0.74], sun: [0xffb066, 0.68] },
-    { id: 'garten', name: 'Garten', floor: grass, rep: 10, wall: gardenWall,
+    { id: 'garten', name: 'Garten', felt: 'purple', back: 'blue', floor: grass, rep: 10, wall: gardenWall,
       hemi: [0xeaf6ff, 0x3f7a3a, 0.98], sun: [0xffffff, 0.72] }
   ];
+
+
+  /* ---------- Möbel und Deko (einfache 3D-Formen, keine Dateien) ---------- */
+  const mats = {};
+  function M(color, rough, emissive) {
+    const k = color + '|' + rough + '|' + (emissive || '');
+    if (!mats[k]) mats[k] = new THREE.MeshStandardMaterial({ color, roughness: rough == null ? 0.7 : rough, metalness: 0, emissive: emissive || 0x000000 });
+    return mats[k];
+  }
+  function box(g, w, h, d, mat, x, y, z) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); g.add(m); return m; }
+  function cyl(g, rt, rb, h, mat, x, y, z, seg) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 16), mat); m.position.set(x, y, z); g.add(m); return m; }
+  function ball(g, r, mat, x, y, z, sy) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), mat); m.position.set(x, y, z); if (sy) m.scale.y = sy; g.add(m); return m; }
+  /* Teil an Position (x, z) auf dem Boden, Vorderseite (-z lokal) zeigt zur Tischmitte */
+  function place(root, part, x, z) {
+    part.position.set(x, FLOOR_Y, z);
+    part.rotation.y = Math.atan2(x, z);
+    root.add(part);
+  }
+  const F = FLOOR_Y;
+
+  function chair(wood, cushion, arm) {
+    const g = new THREE.Group(), W = arm ? 3.0 : 2.4, legH = 2.0;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(g, 0.13, 0.11, legH, wood, sx * (W / 2 - 0.25), legH / 2, sz * 0.95);
+    box(g, W, 0.32, 2.3, wood, 0, legH + 0.16, 0);
+    box(g, W - 0.25, 0.22, 2.1, cushion, 0, legH + 0.42, 0);
+    box(g, W, 2.6, 0.32, arm ? cushion : wood, 0, legH + 1.6, 1.0);
+    if (arm) for (const sx of [-1, 1]) box(g, 0.4, 1.0, 2.2, cushion, sx * (W / 2), legH + 0.75, 0);
+    return g;
+  }
+  function plant(pot, leaf, size) {
+    const g = new THREE.Group(), k = size || 1;
+    cyl(g, 0.9 * k, 0.65 * k, 1.4 * k, pot, 0, 0.7 * k, 0);
+    for (let i = 0; i < 6; i++) { const a = i * 1.05; ball(g, 0.75 * k, leaf, Math.cos(a) * 0.55 * k, (2.0 + (i % 2) * 0.7) * k, Math.sin(a) * 0.55 * k, 1.5); }
+    ball(g, 0.8 * k, leaf, 0, 3.0 * k, 0, 1.4);
+    return g;
+  }
+  function lamp(pole, shade) {
+    const g = new THREE.Group();
+    cyl(g, 0.7, 0.8, 0.2, pole, 0, 0.1, 0); cyl(g, 0.08, 0.08, 7.2, pole, 0, 3.7, 0);
+    cyl(g, 0.7, 1.3, 1.4, shade, 0, 7.5, 0, 20);
+    return g;
+  }
+  function sofa(frame, cushion) {
+    const g = new THREE.Group();
+    box(g, 9, 1.6, 3.6, frame, 0, 1.0, 0); box(g, 8.2, 0.6, 3.0, cushion, 0, 2.1, -0.1);
+    box(g, 9, 3.4, 0.9, frame, 0, 2.6, 1.4);
+    for (const sx of [-1, 1]) box(g, 0.9, 2.6, 3.6, frame, sx * 4.5, 1.9, 0);
+    return g;
+  }
+  function shelf(wood) {
+    const g = new THREE.Group(), cols = [0x7a1f1f, 0x1f4a3a, 0x27406f, 0x8a6a1c, 0x4a2a55];
+    box(g, 6, 10, 1.6, wood, 0, 5, 0.4);
+    for (let r = 0; r < 4; r++) for (let i = 0; i < 9; i++) box(g, 0.5, 1.6 + (i % 3) * 0.25, 1.1, M(cols[(i + r) % cols.length], 0.8), -2.3 + i * 0.58, 1.3 + r * 2.3, 0);
+    return g;
+  }
+  function sideTable(wood, glow) {
+    const g = new THREE.Group();
+    cyl(g, 1.2, 1.2, 0.2, wood, 0, 3.0, 0); cyl(g, 0.15, 0.15, 2.9, wood, 0, 1.45, 0); cyl(g, 0.7, 0.8, 0.15, wood, 0, 0.08, 0);
+    cyl(g, 0.16, 0.16, 0.7, M(0xfff4dc, 0.6), 0, 3.45, 0); ball(g, 0.14, glow, 0, 3.9, 0, 1.5);
+    return g;
+  }
+  function pillar(stone, gold) {
+    const g = new THREE.Group();
+    box(g, 2.2, 0.6, 2.2, gold, 0, 0.3, 0); cyl(g, 0.8, 0.9, 13, stone, 0, 7.1, 0, 20); box(g, 2.2, 0.6, 2.2, gold, 0, 13.9, 0);
+    return g;
+  }
+  function tree(bark, leaf) {
+    const g = new THREE.Group();
+    cyl(g, 0.45, 0.7, 6, bark, 0, 3, 0);
+    ball(g, 3.2, leaf, 0, 8.2, 0, 1.0); ball(g, 2.3, leaf, 1.8, 6.8, 0.6, 0.9); ball(g, 2.2, leaf, -1.7, 7.0, -0.4, 0.9);
+    return g;
+  }
+  function lantern(post, glow) {
+    const g = new THREE.Group();
+    cyl(g, 0.12, 0.14, 5.5, post, 0, 2.75, 0); box(g, 0.9, 1.1, 0.9, glow, 0, 6.0, 0); box(g, 1.1, 0.15, 1.1, post, 0, 6.6, 0);
+    return g;
+  }
+  function slot(gold, red, glow) {
+    const g = new THREE.Group();
+    box(g, 3.2, 6, 2.6, red, 0, 3, 0); box(g, 2.4, 1.8, 0.2, glow, 0, 4.4, -1.31); box(g, 3.4, 0.4, 2.8, gold, 0, 6.2, 0);
+    box(g, 2.6, 0.3, 1.0, gold, 0, 2.6, -1.6);
+    return g;
+  }
+  function flowers(cols) {
+    const g = new THREE.Group();
+    for (let i = 0; i < 9; i++) { const a = i * 0.7, r = 0.4 + (i % 3) * 0.55; cyl(g, 0.04, 0.04, 1.0, M(0x2f7030, 0.9), Math.cos(a) * r, 0.5, Math.sin(a) * r, 6); ball(g, 0.26, M(cols[i % cols.length], 0.6), Math.cos(a) * r, 1.05, Math.sin(a) * r); }
+    return g;
+  }
+
+  /* Stühle an den vier Sitzplätzen (oben bleibt frei für den Stapel) */
+  function chairs(root, make) {
+    for (const d of [-90, -32, 32, 90]) {
+      const a = d * Math.PI / 180;
+      place(root, make(), Math.sin(a) * 10.6, Math.cos(a) * 8.2);
+    }
+  }
+  /* Teil im Kreis um den Tisch (Winkel in Grad, 0 = unten, 180 = oben), Abstand r */
+  function ring(root, part, deg, r) { const a = deg * Math.PI / 180; place(root, part, Math.sin(a) * r, Math.cos(a) * r); }
+
+  const DECO = {
+    terrasse(root) {
+      const wood = M(0x6b4424, 0.8), cushion = M(0xe9dcc0, 0.95), pot = M(0xb5643a, 0.85), leaf = M(0x3f8a3a, 0.9);
+      chairs(root, () => chair(wood, cushion));
+      ring(root, plant(pot, leaf, 1.3), 150, 17); ring(root, plant(pot, leaf, 1.1), -150, 17); ring(root, plant(pot, leaf, 1.2), 120, 19);
+      const glow = M(0xffd27a, 0.5, 0xffb347);
+      for (const d of [180, 135, -135, 60, -60]) ring(root, lantern(M(0x222222, 0.6), glow), d, 22);
+    },
+    stube(root) {
+      const wood = M(0x7a4a26, 0.7), cushion = M(0x8e1a20, 0.9);
+      chairs(root, () => chair(wood, cushion));
+      ring(root, sofa(M(0x4a3a2a, 0.85), M(0xc9a86a, 0.95)), 180, 19);
+      ring(root, lamp(M(0x3a2a1a, 0.6), M(0xfff1d6, 0.6, 0x8a6a30)), 145, 18);
+      ring(root, plant(M(0x2a2a2a, 0.7), M(0x3d8a3a, 0.9), 1.3), -145, 18);
+      ring(root, shelf(wood), -120, 24); ring(root, shelf(wood), 120, 24);
+    },
+    casino(root) {
+      const gold = M(0xd9a43a, 0.35), velvet = M(0x7a0d18, 0.9), black = M(0x1a1416, 0.6);
+      chairs(root, () => chair(black, velvet, true));
+      for (const d of [180, 120, -120, 60, -60]) ring(root, pillar(M(0xe8dcc6, 0.5), gold), d, 23);
+      const glow = M(0x3a7ad9, 0.4, 0x2a6ad0);
+      for (const d of [160, -160, 145, -145]) ring(root, slot(gold, velvet, glow), d, 18);
+      ring(root, plant(gold, M(0x2f7030, 0.9), 1.2), 100, 19); ring(root, plant(gold, M(0x2f7030, 0.9), 1.2), -100, 19);
+    },
+    kamin(root) {
+      const wood = M(0x4a2c16, 0.7), leather = M(0x5a2a14, 0.6);
+      chairs(root, () => chair(wood, leather, true));
+      const glow = M(0xffcf80, 0.5, 0xff9a2e);
+      ring(root, sideTable(wood, glow), 150, 15); ring(root, sideTable(wood, glow), -150, 15);
+      for (const d of [-130, -100, 100, 130]) ring(root, shelf(wood), d, 25);
+      ring(root, lamp(M(0x2a1a0e, 0.6), M(0xf3dcb0, 0.6, 0x9a6a2a)), 180, 20);
+      ring(root, plant(M(0x3a2a1e, 0.8), M(0x2f6a30, 0.9), 1.1), 165, 22);
+    },
+    garten(root) {
+      const white = M(0xf4f1ea, 0.6), cushion = M(0x5a9ad0, 0.95);
+      chairs(root, () => chair(white, cushion));
+      const bark = M(0x5a3a1c, 0.9);
+      for (const [d, r] of [[180, 22], [140, 20], [-140, 20], [110, 24], [-110, 24]]) ring(root, tree(bark, M(d % 40 ? 0x3d8a3a : 0x2f7030, 0.9)), d, r);
+      for (const [d, r] of [[160, 15], [-160, 15], [125, 15], [-125, 15], [70, 18], [-70, 18]]) ring(root, flowers([0xff5a62, 0xffe066, 0xffffff, 0xc77dff]), d, r);
+      for (const d of [150, -150, 95, -95]) { const b = new THREE.Group(); ball(b, 1.6, M(0x2f7a30, 0.9), 0, 1.2, 0, 0.8); ball(b, 1.2, M(0x3d8a3a, 0.9), 1.3, 1.0, 0.3, 0.8); ring(root, b, d, 17); }
+    }
+  };
 
   let group = null;
   function tex(canvas, rx, ry) {
@@ -2104,7 +2302,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     const R = ROOMS.find((r) => r.id === id) || ROOMS[0];
     if (group) {
       c.scene.remove(group);
-      group.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
+      group.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.map) { o.material.map.dispose(); o.material.dispose(); } });
     }
     group = new THREE.Group();
     const floor = new THREE.Mesh(new THREE.CircleGeometry(RADIUS, 48), new THREE.MeshStandardMaterial({ map: tex(R.floor(), R.rep, R.rep), roughness: 0.9, metalness: 0 }));
@@ -2117,7 +2315,11 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       const wall = new THREE.Mesh(new THREE.CylinderGeometry(RADIUS, RADIUS, WALL_H, 48, 1, true), new THREE.MeshBasicMaterial({ map: tex(R.wall(), 6, 1), side: THREE.BackSide }));
       wall.position.y = FLOOR_Y + WALL_H / 2; group.add(wall);
     }
+    if (DECO[R.id]) DECO[R.id](group);
     c.scene.add(group);
+    const set = DK.settings;
+    DK.Textures.setFelt(set.tableColor && set.tableColor !== 'auto' ? set.tableColor : R.felt);
+    DK.Textures.setBack(set.backColor && set.backColor !== 'auto' ? set.backColor : R.back);
     c.hemi.color.setHex(R.hemi[0]); c.hemi.groundColor.setHex(R.hemi[1]); c.hemi.intensity = R.hemi[2];
     c.sun.color.setHex(R.sun[0]); c.sun.intensity = R.sun[1];
     const stage = document.getElementById('stage');
@@ -2575,7 +2777,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
         const du = st.net ? 'Du bist dran: ' : '';
         if (!isRevealed()) hint = set.peek === 'hold' ? '👆 ' + me + ': Karten gedrückt halten zum Ansehen' : '👆 ' + me + ': Karten antippen zum Aufdecken';
         else if (mode === 'attack') hint = du + 'Karte wählen und in die Mitte ziehen – gleiche Werte gehen zusammen';
-        else if (mode === 'defend') hint = du + 'Schlagen, weitergeben oder nehmen';
+        else if (mode === 'defend') hint = du + (sel ? 'Nochmal antippen – oder die Tischkarte antippen, die du schlagen willst' : 'Schlagen, weitergeben oder nehmen');
         else hint = du + (g.taking ? 'Passende Karten nachlegen oder „Fertig“' : 'Nachlegen oder „Fertig (Bito)“');
       }
     }
@@ -2970,6 +3172,10 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
       if (card) {
         ptr.card = card; ptr.wasRevealed = isRevealed();
         if (set.peek === 'hold' && !st.solo) { st.hold = true; st.selected = card.id; A.play('flip'); render(); }
+      } else if (st.game.mode === 'defend' && st.selected) {      // gewählte Karte auf eine bestimmte Tischkarte legen
+        const open = st.game.field.filter((f) => !f.defense).map((f) => f.attack);
+        const hit = S.pickHand(ndcOf(e), open);
+        if (hit) ptr.target = st.game.field.findIndex((f) => f.attack === hit);
       }
     }
   });
@@ -2994,6 +3200,12 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   function endPointer(e, cancel) {
     if (!ptr || e.pointerId !== ptr.id) return;
     const p = ptr; ptr = null;
+    if (p.target != null && !p.moved && !cancel && myTurn()) {
+      const c = selectedCard(), f = st.game.field[p.target];
+      if (c && f && st.game.canDefendAt(c, p.target)) submit({ type: 'defend', id: c.id, idx: p.target }, 'place');
+      else if (c && f) { A.play('error'); UI.toast(cardText(c) + ' schlägt ' + cardText(f.attack) + ' nicht'); }
+      return;
+    }
     if (!p.card) return;
     const wasHold = st.hold; st.hold = false;
     if (!myTurn()) { st.dragging = null; render(); return; }
@@ -3064,7 +3276,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     if (k === 'sfxVol' || k === 'sfx') A.play('place');
     if (k === 'laughs' && set.laughs) A.laugh(1);
     if (k === 'sort') render();
-    if (k === 'room') DK.Rooms.apply(set.room);
+    if (k === 'room' || k === 'tableColor' || k === 'backColor') DK.Rooms.apply(set.room);
     if (k === 'peek' && st.playing && !st.busy) { st.revealed = set.peek === 'auto' && myTurn(); render(); }
     if (DK.Online) DK.Online.settingChanged(k);
   });
@@ -3076,6 +3288,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   DK.Rooms.apply(set.room);
   S.onFrame = () => {
     if (st.playing) UI.positionLabels((i) => S.seatScreen(i));
+    if (DK.Chat) DK.Chat.frame();
   };
   UI.buildLogo();
   showDemo();
@@ -3250,6 +3463,100 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
 
 </script>
   <script>
+/* Durak 3D – Kurznachrichten und Emojis zwischen den Spielern (nur in Online-Partien)
+ *
+ * 💬 öffnet eine Leiste mit Emojis, festen Sprüchen und einem Textfeld. Die Nachricht erscheint als
+ * Sprechblase beim Namen des Absenders auf allen Geräten. Mitspieler schicken an den Gastgeber,
+ * der Gastgeber verteilt an alle.
+ */
+(function () {
+  'use strict';
+  const DK = window.DK, UI = DK.UI, A = DK.Audio, $ = UI.$;
+  const EMOJI = ['😂', '👍', '👏', '😱', '😡', '🤔', '🔥', '🃏', '🍀', '😎'];
+  const PHRASES = ['Gut gespielt!', 'Schnell!', 'Oh nein!', 'Glück gehabt!', 'Na warte!', 'Durak! 🤡'];
+  const SHOW_MS = 4500, MAX_LEN = 60;
+  const st = () => DK.Game.state;
+  const bubbles = [];
+  let last = 0, shown = false;
+
+  const clean = (t) => String(t || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, MAX_LEN);
+  const emojiOnly = (t) => t.length <= 8 && !/[A-Za-zÄÖÜäöüß0-9]/.test(t);
+
+  /* ---------- Leiste aufbauen ---------- */
+  const bar = $('chatBar'), input = $('chatText');
+  const row1 = $('chatEmoji'), row2 = $('chatPhrases');
+  EMOJI.forEach((e) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'emo'; b.textContent = e; b.addEventListener('click', () => send(e)); row1.appendChild(b); });
+  PHRASES.forEach((p) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost'; b.textContent = p; b.addEventListener('click', () => send(p)); row2.appendChild(b); });
+
+  function open(on) {
+    bar.classList.toggle('hidden', !on);
+    $('btnChat').classList.toggle('on', on);
+    if (!on && document.activeElement === input) input.blur();
+  }
+  $('btnChat').addEventListener('click', () => { A.init(); open(bar.classList.contains('hidden')); });
+  $('btnChatSend').addEventListener('click', () => send(input.value));
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); send(input.value); } });
+
+  function send(text) {
+    text = clean(text);
+    const s = st();
+    if (!text || !s.net) return;
+    const now = Date.now();
+    if (now - last < 700) return;                    // nicht zu schnell hintereinander
+    last = now;
+    if (s.net.role === 'host') hostReceive(s.me, text);
+    else s.net.send({ t: 'chat', text });
+    input.value = '';
+    open(false);
+  }
+
+  /* Gastgeber: Nachricht eines Platzes anzeigen und an alle verteilen */
+  function hostReceive(seat, text) {
+    text = clean(text);
+    if (!text) return;
+    show(seat, text);
+    const s = st();
+    if (s.net && s.net.role === 'host') s.net.broadcast({ t: 'chat', from: seat, text });
+  }
+
+  /* ---------- Sprechblasen ---------- */
+  function show(seat, text) {
+    text = clean(text);
+    if (!text || seat == null) return;
+    const el = document.createElement('div');
+    el.className = 'bubble' + (emojiOnly(text) ? ' big' : '');
+    const who = document.createElement('b'); who.textContent = (st().names[seat] || '') + ':';
+    el.appendChild(who); el.appendChild(document.createTextNode(' ' + text));
+    $('labels').appendChild(el);
+    bubbles.push({ seat, el, until: Date.now() + SHOW_MS });
+    while (bubbles.filter((b) => b.seat === seat).length > 2) { const old = bubbles.find((b) => b.seat === seat); old.el.remove(); bubbles.splice(bubbles.indexOf(old), 1); }
+    A.play('flip');
+  }
+
+  /* Jedes Bild: Leiste ein-/ausblenden, Blasen an den Namen der Spieler ausrichten */
+  function frame() {
+    const s = st(), on = !!s.net && s.playing;
+    if (on !== shown) { shown = on; UI.show('btnChat', on); if (!on) open(false); }
+    const now = Date.now(), W = window.innerWidth, H = window.innerHeight, stack = {};
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+      const b = bubbles[i];
+      if (!s.playing || now > b.until) { b.el.remove(); bubbles.splice(i, 1); continue; }
+      b.el.style.opacity = Math.min(1, (b.until - now) / 500);
+      let x, y;
+      if (b.seat === s.me || b.seat === s.actor) { x = W / 2; y = H * 0.56; }   // eigene Nachricht: über der Hand
+      else { const p = DK.Scene.seatScreen(b.seat); x = p.x; y = p.y - 34; }
+      const k = stack[b.seat] = (stack[b.seat] || 0) + 1;
+      const w = b.el.offsetWidth || 120;
+      b.el.style.left = Math.max(8, Math.min(W - w - 8, x - w / 2)) + 'px';
+      b.el.style.top = Math.max(56, y - (k - 1) * 44) + 'px';
+    }
+  }
+
+  DK.Chat = { show, hostReceive, frame };
+})();
+
+</script>
+  <script>
 /* Durak 3D – Gemeinsam spielen: Raum eröffnen, per Code oder Link beitreten, Lobby
  *
  * Der Gastgeber führt die Spielerliste; Platz 1 ist immer er selbst. Jedes Gerät steuert genau einen Spieler,
@@ -3327,6 +3634,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     const p = link.player, seat = p ? room.players.indexOf(p) : -1;
     if (seat < 0 || p.link !== link) return;
     if (m.t === 'act') { if (room.running) G.remoteMove(seat, m); }
+    else if (m.t === 'chat') { if (room.running) DK.Chat.hostReceive(seat, m.text); }
     else if (m.t === 'rtc') {                      // Videofenster: Nachricht an den Ziel-Platz weiterreichen
       if (m.to === 0) DK.Video.onSignal(seat, m.d);
       else { const q = room.players[m.to]; if (q && q.link) q.link.send({ t: 'rtc', from: seat, d: m.d }); }
@@ -3420,6 +3728,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     else if (m.t === 'deny') { stopClient(false); if (st.net) G.toTitle(); fail(DENY[m.reason] || 'Beitritt nicht möglich.'); }
     else if (m.t === 'lobby') { if (st.playing) G.toLobby(); G.showOnly('lobby'); renderLobby(m, false); }
     else if (m.t === 'rtc') DK.Video.onSignal(m.from, m.d);
+    else if (m.t === 'chat') DK.Chat.show(m.from, m.text);
     else if (m.t === 'start') G.clientStart(m, clientSession);
     else if (m.t === 'end') { stopClient(false); G.toTitle(m.reason === 'kicked' ? 'Du wurdest aus dem Raum entfernt' : 'Der Gastgeber hat das Spiel beendet'); }
     else G.clientMsg(m);

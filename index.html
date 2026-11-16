@@ -359,6 +359,31 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
 .crow .ghost.own { border-color: var(--gold); color: #fff; position: relative; padding-right: 1.9em; }
 .crow .ghost.own .del { position: absolute; right: .45em; top: 50%; transform: translateY(-50%); font-size: .8em; opacity: .7; }
 
+/* ---------- Videofenster wie bei WhatsApp ---------- */
+#videos { --vt: clamp(170px, 46vh, 460px); flex-direction: column; }
+#videos.many { --vt: clamp(130px, 30vh, 300px); }
+#videos .vtile { width: auto; height: var(--vt); aspect-ratio: 3 / 4; border-radius: 16px; transition: height .2s; }
+#videos .vtile.big { width: auto; height: min(84vh, 760px); }
+#videos .vtile.own { position: absolute; right: -14px; bottom: -14px; height: calc(var(--vt) * .4); z-index: 2; border-width: 2px; cursor: pointer; }
+#videos.many .vtile.own { right: -14px; bottom: -14px; }
+#videos.solo .vtile.own { position: relative; right: auto; bottom: auto; height: calc(var(--vt) * .55); }
+#videos .vtile span { font-size: 13px; padding: 2px 8px; }
+.fxbadge { position: absolute; right: 4px; top: 4px; font-style: normal; font-size: 15px; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .7)); }
+@media (orientation: portrait) {
+  #videos { --vt: clamp(180px, 33vh, 340px); }
+  #videos.many { --vt: clamp(140px, 24vh, 240px); }
+  #videos .vtile.big { height: 66vh; }
+  #videos .vtile, #videos .vtile.own, #videos .vtile.big { width: auto; }
+}
+#fxBar {
+  position: absolute; left: 50%; bottom: max(10px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 6;
+  width: min(96vw, 620px); display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; padding: 8px;
+  background: var(--panel); border: 1.5px solid var(--gold); border-radius: 16px; box-shadow: 0 8px 30px rgba(0, 0, 0, .55);
+}
+#fxBar button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: .35em .5em; min-width: 4.4em; }
+#fxBar .ic { font-size: clamp(22px, 4.6vh, 30px); line-height: 1; }
+#fxBar small { font-size: 11px; }
+
 </style>
 </head>
 <body>
@@ -394,7 +419,8 @@ body.kb .screen { top: var(--vvt, 0); bottom: auto; height: var(--vvh, 100%); pa
     <div id="awayBar" class="hidden"><span id="awayText"></span>
       <button id="btnTakeover" class="ghost">🤖 Computer übernimmt</button></div>
     <div id="toast"></div>
-    <div id="videos"></div>
+    <div id="videos" class="solo"></div>
+    <div id="fxBar" class="hidden"></div>
     <div id="chatBar" class="hidden">
       <div id="chatEmoji" class="crow"></div>
       <div id="chatPhrases" class="crow"></div>
@@ -703,7 +729,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     music: true, musicVol: 60, musicTrack: 0, sfx: true, sfxVol: 80, laughs: true,
     players: 4, names: ['Spieler 1', 'Spieler 2', 'Spieler 3', 'Spieler 4'], cpu: [false, false, false, false],
     myName: '', peek: 'tap', handover: true, autoCam: true,
-    transfer: true, first5: true, deck: 36, clockwise: false, cpuLevel: 'normal', sort: 'rank', room: 'terrasse', tableColor: 'auto', backColor: 'auto'
+    transfer: true, first5: true, deck: 36, clockwise: false, cpuLevel: 'normal', sort: 'rank', room: 'terrasse', tableColor: 'auto', backColor: 'auto', videoFx: 'none'
   };
   function load(key) { try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { return {}; } }
   function save(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* privat/gesperrt */ } }
@@ -3328,6 +3354,185 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
 
 </script>
   <script>
+/* Durak 3D – Video-Effekte: Narrenkappe, Sonnenbrille, Krone … direkt auf dem Gesicht
+ *
+ * Das Kamerabild läuft durch eine Zeichenfläche: dort wird der gewählte Effekt auf das Gesicht gemalt,
+ * und genau dieses Bild geht an die Mitspieler (sie sehen den Effekt also auch).
+ * Die Gesichtserkennung (Google MediaPipe, ca. 13 MB) wird erst geladen, wenn ein Effekt gewählt wird.
+ * Das Kamerabild selbst bleibt auf dem Gerät – erkannt wird lokal im Browser.
+ */
+(function () {
+  'use strict';
+  const DK = window.DK;
+  const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+  const MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+  const LIST = [
+    { id: 'none', icon: '⭕', name: 'Ohne' },
+    { id: 'jester', icon: '🃏', name: 'Narrenkappe' },
+    { id: 'shades', icon: '😎', name: 'Sonnenbrille' },
+    { id: 'crown', icon: '👑', name: 'Krone' },
+    { id: 'party', icon: '🥳', name: 'Partyhut' },
+    { id: 'stache', icon: '🥸', name: 'Schnurrbart' },
+    { id: 'clown', icon: '🔴', name: 'Clownsnase' },
+    { id: 'bunny', icon: '🐰', name: 'Hasenohren' }
+  ];
+  let current = DK.settings.videoFx || 'none';
+  let tracker = null, loading = null, failed = false;
+
+  /* ---------- Gesichtserkennung nachladen ---------- */
+  function loadTracker() {
+    if (tracker || loading || failed) return loading;
+    if (DK.UI) DK.UI.toast('Gesichtserkennung wird geladen …');
+    loading = import(MP + '/vision_bundle.mjs').then(async (V) => {
+      const files = await V.FilesetResolver.forVisionTasks(MP + '/wasm');
+      const make = (delegate) => V.FaceLandmarker.createFromOptions(files, {
+        baseOptions: { modelAssetPath: MODEL, delegate }, runningMode: 'VIDEO', numFaces: 1
+      });
+      tracker = await make('GPU').catch(() => make('CPU'));
+      loading = null;
+    }).catch(() => { failed = true; loading = null; if (DK.UI) DK.UI.toast('Gesichtserkennung nicht verfügbar – Effekt sitzt in der Bildmitte'); });
+    return loading;
+  }
+
+  /* ---------- Gesichts-Werte (Pixel): Augenmitte, Augenabstand, Neigung, Stirn, Nase, Oberlippe ---------- */
+  function guessFace(w, h) {
+    const ed = w * 0.2, cx = w / 2, cy = h * 0.45;
+    return { cx, cy, ed, ang: 0, fx: cx, fy: cy - ed * 0.95, nx: cx, ny: cy + ed * 0.55, mx: cx, my: cy + ed * 0.95 };
+  }
+  function fromLandmarks(L, w, h) {
+    const P = (i) => ({ x: L[i].x * w, y: L[i].y * h });
+    const a = P(33), b = P(263), top = P(10), nose = P(1), lip = P(13);
+    const ed = Math.hypot(b.x - a.x, b.y - a.y);
+    return { cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, ed, ang: Math.atan2(b.y - a.y, b.x - a.x), fx: top.x, fy: top.y, nx: nose.x, ny: nose.y, mx: lip.x, my: lip.y };
+  }
+  function smooth(prev, next, k) {
+    if (!prev) return next;
+    const o = {};
+    for (const key in next) o[key] = prev[key] + (next[key] - prev[key]) * k;
+    return o;
+  }
+
+  /* ---------- Effekte zeichnen (Einheit = Augenabstand, Ursprung siehe jeweils) ---------- */
+  function at(x, px, py, F, fn) { x.save(); x.translate(px, py); x.rotate(F.ang); x.scale(F.ed, F.ed); fn(); x.restore(); }
+  function outline(x, w) { x.lineWidth = w || 0.05; x.strokeStyle = '#1a1208'; x.stroke(); }
+  const DRAW = {
+    jester(x, F) {                         // Ursprung: Stirn oben
+      at(x, F.fx, F.fy, F, () => {
+        const tips = [[-1.9, -1.0], [-0.9, -2.15], [0.9, -2.15], [1.9, -1.0]], cols = ['#d8262c', '#2b5aa6', '#1f8a5b', '#e9b53a'];
+        tips.forEach((t, i) => {
+          const l = -1.25 + i * 0.62, r = l + 0.95;
+          x.beginPath(); x.moveTo(l, 0.15); x.quadraticCurveTo(l + (t[0] - l) * 0.3, t[1] * 0.75, t[0], t[1]);
+          x.quadraticCurveTo(r - 0.1, t[1] * 0.4, r, 0.15); x.closePath();
+          x.fillStyle = cols[i]; x.fill(); outline(x);
+        });
+        x.beginPath(); x.rect(-1.35, 0.0, 2.7, 0.42); x.fillStyle = '#e9b53a'; x.fill(); outline(x);
+        for (let i = 0; i < 6; i++) { x.beginPath(); x.moveTo(-1.35 + i * 0.54, 0.42); x.lineTo(-1.08 + i * 0.54, 0.75); x.lineTo(-0.81 + i * 0.54, 0.42); x.fillStyle = i % 2 ? '#d8262c' : '#2b5aa6'; x.fill(); outline(x, 0.03); }
+        tips.forEach((t) => { x.beginPath(); x.arc(t[0], t[1], 0.2, 0, 7); x.fillStyle = '#ffd84a'; x.fill(); outline(x, 0.04); });
+      });
+    },
+    shades(x, F) {                         // Ursprung: Augenmitte
+      at(x, F.cx, F.cy, F, () => {
+        for (const s of [-1, 1]) {
+          x.beginPath(); x.ellipse(s * 0.5, 0.05, 0.42, 0.3, 0, 0, 7);
+          const g = x.createLinearGradient(0, -0.3, 0, 0.35); g.addColorStop(0, '#3a3f55'); g.addColorStop(1, '#07080d');
+          x.fillStyle = g; x.fill(); outline(x, 0.07);
+          x.beginPath(); x.ellipse(s * 0.5 - 0.14, -0.08, 0.12, 0.06, -0.4, 0, 7); x.fillStyle = 'rgba(255,255,255,.55)'; x.fill();
+        }
+        x.beginPath(); x.moveTo(-0.1, -0.02); x.quadraticCurveTo(0, -0.12, 0.1, -0.02); outline(x, 0.07);
+        for (const s of [-1, 1]) { x.beginPath(); x.moveTo(s * 0.9, -0.02); x.lineTo(s * 1.25, -0.1); outline(x, 0.07); }
+      });
+    },
+    crown(x, F) {
+      at(x, F.fx, F.fy, F, () => {
+        x.beginPath(); x.moveTo(-1.0, 0.25); x.lineTo(-1.1, -0.75); x.lineTo(-0.55, -0.25); x.lineTo(0, -1.0); x.lineTo(0.55, -0.25); x.lineTo(1.1, -0.75); x.lineTo(1.0, 0.25); x.closePath();
+        const g = x.createLinearGradient(0, -1, 0, 0.3); g.addColorStop(0, '#fff0a8'); g.addColorStop(1, '#c08a25'); x.fillStyle = g; x.fill(); outline(x);
+        [[-0.55, 0.02, '#d8262c'], [0, -0.05, '#2b5aa6'], [0.55, 0.02, '#1f8a5b']].forEach((p) => { x.beginPath(); x.arc(p[0], p[1], 0.11, 0, 7); x.fillStyle = p[2]; x.fill(); outline(x, 0.03); });
+        [[-1.1, -0.75], [0, -1.0], [1.1, -0.75]].forEach((p) => { x.beginPath(); x.arc(p[0], p[1], 0.09, 0, 7); x.fillStyle = '#fff'; x.fill(); });
+      });
+    },
+    party(x, F) {
+      at(x, F.fx + F.ed * 0.25, F.fy, F, () => {
+        x.rotate(0.25);
+        x.beginPath(); x.moveTo(-0.7, 0.15); x.lineTo(0, -1.9); x.lineTo(0.7, 0.15); x.closePath();
+        x.save(); x.clip();
+        for (let i = 0; i < 6; i++) { x.beginPath(); x.moveTo(-1, -1.9 + i * 0.4); x.lineTo(1, -1.6 + i * 0.4); x.lineTo(1, -1.4 + i * 0.4); x.lineTo(-1, -1.7 + i * 0.4); x.fillStyle = i % 2 ? '#ff5a9a' : '#3ac0ff'; x.fill(); }
+        x.restore();
+        x.beginPath(); x.moveTo(-0.7, 0.15); x.lineTo(0, -1.9); x.lineTo(0.7, 0.15); x.closePath(); outline(x);
+        x.beginPath(); x.arc(0, -1.95, 0.22, 0, 7); x.fillStyle = '#ffe066'; x.fill(); outline(x, 0.04);
+      });
+    },
+    stache(x, F) {                         // Ursprung: Oberlippe
+      at(x, F.mx, F.my - F.ed * 0.12, F, () => {
+        x.beginPath(); x.moveTo(0, -0.08);
+        x.bezierCurveTo(0.3, -0.3, 0.75, -0.2, 0.85, 0.05); x.bezierCurveTo(0.6, -0.02, 0.35, 0.15, 0, 0.06);
+        x.bezierCurveTo(-0.35, 0.15, -0.6, -0.02, -0.85, 0.05); x.bezierCurveTo(-0.75, -0.2, -0.3, -0.3, 0, -0.08);
+        x.fillStyle = '#3b2414'; x.fill(); outline(x, 0.03);
+      });
+    },
+    clown(x, F) {                          // Ursprung: Nasenspitze
+      at(x, F.nx, F.ny, F, () => {
+        const g = x.createRadialGradient(-0.08, -0.1, 0.03, 0, 0, 0.32); g.addColorStop(0, '#ff8a8a'); g.addColorStop(1, '#c4161a');
+        x.beginPath(); x.arc(0, 0, 0.3, 0, 7); x.fillStyle = g; x.fill(); outline(x, 0.03);
+      });
+    },
+    bunny(x, F) {
+      at(x, F.fx, F.fy, F, () => {
+        for (const s of [-1, 1]) {
+          x.save(); x.translate(s * 0.55, -0.1); x.rotate(s * 0.18);
+          x.beginPath(); x.ellipse(0, -0.95, 0.32, 1.0, 0, 0, 7); x.fillStyle = '#f4f1ea'; x.fill(); outline(x);
+          x.beginPath(); x.ellipse(0, -0.9, 0.16, 0.75, 0, 0, 7); x.fillStyle = '#ffb3c6'; x.fill();
+          x.restore();
+        }
+      });
+    }
+  };
+
+  /* ---------- Kamerabild -> Zeichenfläche -> Stream für Mitspieler und eigene Vorschau ---------- */
+  function wrap(raw) {
+    const v = document.createElement('video');
+    v.muted = true; v.playsInline = true; v.setAttribute('playsinline', ''); v.autoplay = true;
+    v.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+    document.body.appendChild(v);
+    v.srcObject = raw; v.play().catch(() => {});
+    const c = document.createElement('canvas'), x = c.getContext('2d');
+    c.width = 480; c.height = 360;
+    let face = null, n = 0, lastT = -1;
+    const timer = setInterval(() => {
+      if (v.readyState < 2 || !v.videoWidth) return;
+      if (c.width !== v.videoWidth || c.height !== v.videoHeight) { c.width = v.videoWidth; c.height = v.videoHeight; }
+      const w = c.width, h = c.height;
+      x.drawImage(v, 0, 0, w, h);
+      if (current === 'none' || !DRAW[current]) return;
+      let next = null;
+      if (tracker && (n++ % 2 === 0)) {
+        try {
+          const t = performance.now(); if (t <= lastT) return; lastT = t;
+          const r = tracker.detectForVideo(v, t);
+          if (r && r.faceLandmarks && r.faceLandmarks[0]) next = fromLandmarks(r.faceLandmarks[0], w, h);
+        } catch (e) { /* einzelner Aussetzer */ }
+      } else if (!tracker && !loading) { loadTracker(); }
+      if (next) face = smooth(face, next, 0.55);
+      DRAW[current](x, face || guessFace(w, h));
+    }, 50);
+    const out = c.captureStream(20);
+    raw.getAudioTracks().forEach((t) => out.addTrack(t));
+    return {
+      stream: out,
+      stop() { clearInterval(timer); out.getVideoTracks().forEach((t) => t.stop()); raw.getTracks().forEach((t) => t.stop()); v.srcObject = null; v.remove(); }
+    };
+  }
+
+  function set(id) {
+    current = DRAW[id] ? id : 'none';
+    DK.settings.videoFx = current; DK.saveSettings();
+    if (current !== 'none') loadTracker();
+  }
+
+  DK.Effects = { list: LIST, wrap, set, get current() { return current; }, canCapture: !!HTMLCanvasElement.prototype.captureStream };
+})();
+
+</script>
+  <script>
 /* Durak 3D – Videofenster: die Mitspieler während der Partie sehen und hören
  *
  * Jeder schaltet seine Kamera selbst ein (📹). Das Bild geht direkt von Gerät zu Gerät an alle anderen
@@ -3341,7 +3546,7 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   const st = () => DK.Game.state;
   const out = new Map();     // Platz -> Verbindung, über die ICH sende
   const inc = new Map();     // Platz -> { pc, tile } von anderen empfangen
-  let stream = null, micOn = true, selfTile = null;
+  let stream = null, micOn = true, selfTile = null, fx = null;
   const supported = !!(window.RTCPeerConnection && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 
   function send(to, d) {
@@ -3357,14 +3562,19 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
     v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
     const n = document.createElement('span'); n.textContent = label;
     box.appendChild(v); box.appendChild(n);
-    box.addEventListener('click', () => { if (!dragged) box.classList.toggle('big'); });
+    if (own) {
+      const b = document.createElement('i'); b.className = 'fxbadge'; b.textContent = '✨'; box.appendChild(b);
+      box.addEventListener('click', () => { if (!dragged) toggleFx(); });
+    } else box.addEventListener('click', () => { if (!dragged) box.classList.toggle('big'); });
     $('videos').appendChild(box);
+    layout();
     return { box, v };
   }
   function dropIn(seat) {
     const r = inc.get(seat); if (!r) return;
     inc.delete(seat); try { r.pc.close(); } catch (e) { /* egal */ }
     if (r.tile) r.tile.box.remove();
+    layout();
   }
   function dropOut(seat) { const pc = out.get(seat); if (pc) { out.delete(seat); try { pc.close(); } catch (e) { /* egal */ } } }
 
@@ -3415,10 +3625,11 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   function start(custom) {
     if (stream) return Promise.resolve();
     const get = custom ? Promise.resolve(custom) : navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 15 }, facingMode: 'user' },
+      video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 20 }, facingMode: 'user' },
       audio: { echoCancellation: true, noiseSuppression: true }
     });
     return get.then((s) => {
+      if (DK.Effects && DK.Effects.canCapture) { fx = DK.Effects.wrap(s); s = fx.stream; }   // Bild läuft durch die Effekte
       stream = s; micOn = true;
       selfTile = tile(-1, 'Du', true); selfTile.v.srcObject = s;
       targets().forEach(callSeat);
@@ -3428,8 +3639,10 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   function stop() {
     if (!stream) return;
     Array.from(out.keys()).forEach((seat) => { send(seat, { bye: 1 }); dropOut(seat); });
+    if (fx) { fx.stop(); fx = null; }
     stream.getTracks().forEach((t) => t.stop()); stream = null;
     if (selfTile) { selfTile.box.remove(); selfTile = null; }
+    toggleFx(false); layout();
     buttons();
   }
   function reset() {                      // Partie verlassen: alles schließen
@@ -3462,6 +3675,30 @@ DK.ASSET_DATA = {"assets/table/background.jpg": "data:image/jpeg;base64,/9j/4AAQ
   });
   const drop = (e) => { if (drag && e.pointerId === drag.id) { drag = null; setTimeout(() => { dragged = false; }, 50); } };
   wrap.addEventListener('pointerup', drop); wrap.addEventListener('pointercancel', drop);
+
+  /* Größe wie bei WhatsApp: Gegenüber groß und hochkant, eigenes Bild klein in dessen Ecke */
+  function layout() {
+    const w = $('videos'), remotes = w.querySelectorAll('.vtile:not(.own)').length;
+    w.classList.toggle('solo', remotes === 0);
+    w.classList.toggle('many', remotes > 1);
+  }
+
+  /* Effekt-Auswahl: eigenes Bild antippen */
+  const bar = $('fxBar');
+  if (DK.Effects) {
+    DK.Effects.list.forEach((e) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost'; b.dataset.fx = e.id;
+      b.innerHTML = '<span class="ic"></span><small></small>';
+      b.querySelector('.ic').textContent = e.icon; b.querySelector('small').textContent = e.name;
+      b.addEventListener('click', () => { DK.Effects.set(e.id); markFx(); });
+      bar.appendChild(b);
+    });
+  }
+  function markFx() { bar.querySelectorAll('button').forEach((b) => b.classList.toggle('on', DK.Effects && b.dataset.fx === DK.Effects.current)); }
+  function toggleFx(on) {
+    if (on == null) on = bar.classList.contains('hidden') && !!stream;
+    bar.classList.toggle('hidden', !on); markFx();
+  }
 
   $('btnCam').addEventListener('click', () => { if (stream) stop(); else start(); });
   $('btnMic').addEventListener('click', () => {
